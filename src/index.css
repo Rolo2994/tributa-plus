@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root { height: 100%; }
+body { font-family: 'Inter', sans-serif; }
+
+/* Scrollbars angostos, consistentes con el prototipo HTML aprobado */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-thumb { background: #1E2833; border-radius: 4px; }
+
+/* Foco visible para accesibilidad de teclado (no lo oculta ningún reset) */
+:focus-visible { outline: 2px solid #0B3A60; outline-offset: 2px; }
