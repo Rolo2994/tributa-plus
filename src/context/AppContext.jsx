@@ -4,18 +4,15 @@ import { getRucs } from '../services/googleSheetsApi.js'
 
 const AppContext = createContext(null)
 
-/**
- * AppProvider centraliza el estado que varias pantallas necesitan
- * compartir: RUC activo, filtros (grupo / tipo de vencimiento),
- * navegación entre pantallas, el drawer, el sheet de notas, el
- * selector de contactos, y la consola de actividad.
- */
 export function AppProvider({ children }) {
-  // Ahora rucs es un estado dinámico que empieza con los datos del simulador
   const [rucs, setRucs] = useState(RUCS)
   const [activeRucId, setActiveRucId] = useState(RUCS[0].id)
   const [groupFilter, setGroupFilter] = useState('Todos')
-  const [vencimientoTipo, setVencimientoTipo] = useState('SIRE')
+  
+  // Filtros dinámicos de periodo y tipo de declaración
+  const [vencimientoTipo, setVencimientoTipo] = useState('SIRE') // SIRE | DJ Mensual | DJ Anual
+  const [periodoActual, setPeriodoActual] = useState('Enero')    // Mes por defecto
+  
   const [screen, setScreen] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notesSheetRucId, setNotesSheetRucId] = useState(null)
@@ -25,7 +22,6 @@ export function AppProvider({ children }) {
     { id: 0, ts: new Date(), msg: 'Iniciando conexión con Google Sheets…' },
   ])
 
-  // Función reutilizable para registrar mensajes en la consola visual de la app
   const pushLog = useCallback((msg) => {
     setLogs((prev) => {
       const next = [...prev, { id: prev.length ? prev[prev.length - 1].id + 1 : 0, ts: new Date(), msg }]
@@ -33,45 +29,74 @@ export function AppProvider({ children }) {
     })
   }, [])
 
-  // Función principal para descargar los RUCs reales desde la API
   const sincronizarDatos = useCallback(async () => {
     pushLog('🔄 Sincronizando datos con Google Sheets...')
     try {
       const response = await getRucs()
-      if (response && response.ok && response.data) {
-        setRucs(response.data)
-        // Actualizamos el RUC activo al primero de la lista real si el actual ya no existe
-        if (response.data.length > 0) {
-          setActiveRucId(response.data[0].id || response.data[0].RUC)
+      if (response && response.ok && Array.isArray(response.data)) {
+        const datosAdaptados = response.data
+          .filter(r => r && (r.RUC || r.ruc || r.id))
+          .map((r, index) => {
+            const rucValor = String(r.RUC || r.ruc || r.id || '').trim()
+            return {
+              id: rucValor,
+              ruc: rucValor,
+              razonSocial: r['RAZON SOCIAL'] || r.razonSocial || 'Sin Razón Social',
+              grupo: r.GRUPO || r.grupo || 'General',
+              orden: String(r.ORDEN || r.orden || rucValor.slice(-1)).trim(), // Último dígito o BC
+              
+              usuarioSol: r.USUARIO || r.usuarioSol || '',
+              claveSol: r.CLAVE || r.claveSol || '',
+              usuarioAfp: r['USUARIO AFP NET'] || r.usuarioAfp || '',
+              claveAfp: r['CLAVE AFP NI'] || r.claveAfp || '',
+              
+              vencimientos: Array.isArray(r.vencimientos) ? r.vencimientos : [], 
+              alertas: Array.isArray(r.alertas) ? r.alertas : [],
+              notas: r.notas || ''
+            }
+          })
+
+        if (datosAdaptados.length > 0) {
+          setRucs(datosAdaptados)
+          setActiveRucId(datosAdaptados[0].id)
+          pushLog(`✅ ¡Sincronización exitosa! Se cargaron ${datosAdaptados.length} empresas.`)
+        } else {
+          throw new Error('La hoja de cálculo no devolvió filas válidas.')
         }
-        pushLog('✅ ¡Sincronización exitosa! RUCs actualizados.')
       } else {
-        throw new Error(response.error || 'Respuesta de API inválida')
+        throw new Error(response.error || 'La API no devolvió una lista válida.')
       }
     } catch (error) {
       console.error("Error al sincronizar:", error)
-      pushLog(`❌ Error al sincronizar: ${error.message || error}`)
+      pushLog(`❌ Error al sincronizar: ${error.message || error}. Usando respaldo.`)
+      setRucs(RUCS) 
     }
   }, [pushLog])
-
-  // EFECTO: Descargar los datos automáticamente al abrir la aplicación
+  
   useEffect(() => {
     sincronizarDatos()
   }, [sincronizarDatos])
 
   const activeRuc = useMemo(
-    () => rucs.find((r) => (r.id === activeRucId || r.RUC === activeRucId)) || rucs[0],
+    () => rucs.find((r) => r.id === activeRucId) || rucs[0],
     [rucs, activeRucId]
   )
 
+  // Vencimiento dinámico filtrado según el RUC activo, el tipo seleccionado (SIRE/DJ) y el periodo
+  const vencimientoActivo = useMemo(() => {
+    if (!activeRuc || !Array.isArray(activeRuc.vencimientos)) return null
+    return activeRuc.vencimientos.find(
+      (v) => v && v.tipo === vencimientoTipo && String(v.periodo).toLowerCase() === String(periodoActual).toLowerCase()
+    ) || { tipo: vencimientoTipo, periodo: periodoActual, fechaVence: 'No programado', estado: 'Pendiente' }
+  }, [activeRuc, vencimientoTipo, periodoActual])
+
   const visibleRucs = useMemo(
-    () => (groupFilter === 'Todos' ? rucs : rucs.filter((r) => r.grupo === groupFilter)),
+    () => (groupFilter === 'Todos' ? rucs : rucs.filter((r) => r && r.grupo === groupFilter)),
     [rucs, groupFilter]
   )
 
   const goScreen = useCallback((id) => setScreen(id), [])
 
-  // Añadimos 'sincronizarDatos' al value para que los botones de otras pantallas puedan invocarlo
   const value = {
     rucs,
     visibleRucs,
@@ -82,6 +107,9 @@ export function AppProvider({ children }) {
     setGroupFilter,
     vencimientoTipo,
     setVencimientoTipo,
+    periodoActual,
+    setPeriodoActual,
+    vencimientoActivo,
     screen,
     goScreen,
     drawerOpen,
