@@ -41,15 +41,18 @@ export function AppProvider({ children }) {
     return ['Todos', ...new Set(rucs.map(r => r.grupo).filter(g => g))];
   }, [rucs]);
 
-  return (
-    <AppContext.Provider value={{ 
-      rucs, logs, pushLog, groupFilter, setGroupFilter, vencimientoTipo, 
-      setVencimientoTipo, sincronizarDatos, availableGroups,
-      goScreen, setNotesSheetRucId, visibleRucs: rucs 
-    }}>
-      {children}
-    </AppContext.Provider>
-  );
+return (
+  <AppContext.Provider value={{ 
+    rucs, logs, pushLog, groupFilter, setGroupFilter, vencimientoTipo, 
+    setVencimientoTipo, sincronizarDatos, availableGroups,
+    goScreen, setNotesSheetRucId, visibleRucs: rucs,
+    // AGREGAMOS LO QUE FALTABA PARA EL ModulesScreen:
+    activeRuc: rucs[0] || { razonSocial: 'Sin RUC', ruc: '000', status: 'ok' },
+    setDrawerOpen: () => console.log("Drawer abierto") 
+  }}>
+    {children}
+  </AppContext.Provider>
+);
 }
 
 export const useApp = () => useContext(AppContext);
