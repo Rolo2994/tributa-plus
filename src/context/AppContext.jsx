@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { getRucs } from '../api/googleSheets';
+import { getRucs } from '../services/googleSheetsApi';
 
 const AppContext = createContext();
 
