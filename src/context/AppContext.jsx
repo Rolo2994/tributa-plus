@@ -1,31 +1,55 @@
- // ... (tus otros estados)
-const [notesSheetRucId, setNotesSheetRucId] = useState(null); // Asegúrate de tener este estado
-const [currentScreen, setCurrentScreen] = useState('home'); // Estado para la pantalla actual
+import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import { getRucs } from '../services/googleSheetsApi';
 
-// Agrega estas funciones
-const goScreen = (screenId) => {
-  setCurrentScreen(screenId);
-  console.log("Navegando a:", screenId);
-};
+const AppContext = createContext();
 
-// ... dentro de tu AppProvider, actualiza el value:
-return (
-  <AppContext.Provider value={{ 
-    rucs, 
-    logs, 
-    pushLog, 
-    groupFilter, 
-    setGroupFilter, 
-    vencimientoTipo, 
-    setVencimientoTipo, 
-    sincronizarDatos, 
-    availableGroups,
-    // AGREGAMOS ESTAS DOS LÍNEAS AQUÍ:
-    goScreen,
-    setNotesSheetRucId,
-    // Agregamos visibleRucs que faltaba para que sea consistente con HomeScreen
-    visibleRucs: rucs 
-  }}>
-    {children}
-  </AppContext.Provider>
-);
+export function AppProvider({ children }) {
+  const [rucs, setRucs] = useState([]);
+  const [logs, setLogs] = useState([]);
+  const [groupFilter, setGroupFilter] = useState('Todos');
+  const [vencimientoTipo, setVencimientoTipo] = useState('SIRE');
+  
+  // ESTOS ESTADOS SON NECESARIOS:
+  const [notesSheetRucId, setNotesSheetRucId] = useState(null);
+  const [currentScreen, setCurrentScreen] = useState('home');
+
+  const goScreen = (screenId) => {
+    setCurrentScreen(screenId);
+    console.log("Navegando a:", screenId);
+  };
+
+  const pushLog = (msg) => {
+    setLogs(prev => [...prev.slice(-4), `[${new Date().toLocaleTimeString('es-PE', { hour12: false })}] ${msg}`]);
+  };
+
+  const sincronizarDatos = useCallback(async () => {
+    try {
+      const response = await getRucs();
+      if (response?.ok && Array.isArray(response.data)) {
+        setRucs(response.data);
+      } else {
+        setRucs([]);
+      }
+    } catch (error) {
+      setRucs([]);
+      pushLog('❌ Error al sincronizar');
+    }
+  }, []);
+
+  const availableGroups = useMemo(() => {
+    if (!rucs || !Array.isArray(rucs)) return ['Todos'];
+    return ['Todos', ...new Set(rucs.map(r => r.grupo).filter(g => g))];
+  }, [rucs]);
+
+  return (
+    <AppContext.Provider value={{ 
+      rucs, logs, pushLog, groupFilter, setGroupFilter, vencimientoTipo, 
+      setVencimientoTipo, sincronizarDatos, availableGroups,
+      goScreen, setNotesSheetRucId, visibleRucs: rucs 
+    }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+export const useApp = () => useContext(AppContext);
