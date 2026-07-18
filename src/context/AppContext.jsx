@@ -1,4 +1,4 @@
-// ... (tus otros estados)
+ // ... (tus otros estados)
 const [notesSheetRucId, setNotesSheetRucId] = useState(null); // Asegúrate de tener este estado
 const [currentScreen, setCurrentScreen] = useState('home'); // Estado para la pantalla actual
 
