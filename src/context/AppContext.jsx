@@ -17,9 +17,7 @@ export function AppProvider({ children }) {
     pushLog('🔄 Sincronizando datos con Google Sheets...');
     try {
       const response = await getRucs();
-      
-      if (response && response.ok && Array.isArray(response.data)) {
-        // Mapeo robusto: buscamos 'GRUPO', 'Grupo' o 'grupo'
+      if (response?.ok && Array.isArray(response.data)) {
         const datosAdaptados = response.data
           .filter(r => r && (r.RUC || r.ruc))
           .map((r) => ({
@@ -27,39 +25,25 @@ export function AppProvider({ children }) {
             id: String(r.RUC || r.ruc).trim(),
             ruc: String(r.RUC || r.ruc).trim(),
             razonSocial: r['RAZON SOCIAL'] || r.razonSocial || 'Sin Razón Social',
-            // Aquí está la clave para que detecte los grupos:
             grupo: String(r.GRUPO || r.Grupo || r.grupo || 'Sin Grupo').trim()
           }));
-
         setRucs(datosAdaptados);
-        pushLog(`✅ ¡Sincronización exitosa! Se cargaron ${datosAdaptados.length} empresas.`);
-      } else {
-        pushLog('❌ Error: Formato de datos inválido.');
+        pushLog(`✅ Sincronización exitosa: ${datosAdaptados.length} empresas.`);
       }
     } catch (error) {
-      pushLog('❌ Error de conexión: ' + error.message);
+      pushLog('❌ Error: ' + error.message);
     }
   }, []);
 
-  // Cálculo automático de los grupos disponibles
   const availableGroups = useMemo(() => {
-    const grupos = ['Todos', ...new Set(rucs.map(r => r.grupo).filter(g => g && g !== 'Sin Grupo'))];
-    return grupos;
+    return ['Todos', ...new Set(rucs.map(r => r.grupo).filter(g => g && g !== 'Sin Grupo'))];
   }, [rucs]);
 
-  const value = {
-    rucs,
-    logs,
-    pushLog,
-    groupFilter,
-    setGroupFilter,
-    vencimientoTipo,
-    setVencimientoTipo,
-    sincronizarDatos,
-    availableGroups
-  };
-
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={{ rucs, logs, pushLog, groupFilter, setGroupFilter, vencimientoTipo, setVencimientoTipo, sincronizarDatos, availableGroups }}>
+      {children}
+    </AppContext.Provider>
+  );
 }
 
 export const useApp = () => useContext(AppContext);
