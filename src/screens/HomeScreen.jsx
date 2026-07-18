@@ -10,11 +10,24 @@ const TABS = [
 ]
 
 export default function HomeScreen() {
-  // Aseguramos que si visibleRucs es undefined/null, se convierta en un array vacío []
   const { visibleRucs = [], setNotesSheetRucId, goScreen, groupFilter } = useApp()
 
-  function openModuleAction(id) {
-    goScreen(id)
+  // Función segura para navegar
+  function handleGoScreen(screenId) {
+    if (typeof goScreen === 'function') {
+      goScreen(screenId)
+    } else {
+      console.warn("goScreen no está definida en el contexto.")
+    }
+  }
+
+  // Función segura para seleccionar RUC
+  function handleSelectRuc(rucId) {
+    if (typeof setNotesSheetRucId === 'function') {
+      setNotesSheetRucId(rucId)
+    } else {
+      console.warn("setNotesSheetRucId no está definida en el contexto.")
+    }
   }
 
   return (
@@ -23,7 +36,7 @@ export default function HomeScreen() {
         {TABS.map((t) => (
           <div
             key={t.id}
-            onClick={() => openModuleAction(t.id)}
+            onClick={() => handleGoScreen(t.id)} // Usamos la función segura
             className={`whitespace-nowrap font-semibold text-[12.5px] px-[15px] py-2.5 rounded-full cursor-pointer border ${
               t.id === 'sire'
                 ? 'bg-azul-dark text-white border-azul-dark shadow-[0_6px_14px_-4px_rgba(7,40,68,0.5)]'
@@ -43,7 +56,7 @@ export default function HomeScreen() {
           <span className="text-[11px] text-muted flex items-center gap-1.5">
             {visibleRucs.length} clientes
             <button
-              onClick={() => goScreen('settings')}
+              onClick={() => handleGoScreen('settings')} // Usamos la función segura
               className="bg-[#E7EEF7] text-azul-inst font-semibold px-2.5 py-[3px] rounded-full text-[10px]"
             >
               Grupo: {groupFilter}
@@ -52,7 +65,7 @@ export default function HomeScreen() {
         </div>
 
         {visibleRucs.map((r) => (
-          <RucCard key={r.id} ruc={r} onClick={() => setNotesSheetRucId(r.id)} />
+          <RucCard key={r.id} ruc={r} onClick={() => handleSelectRuc(r.id)} />
         ))}
 
         {visibleRucs.length === 0 && (
