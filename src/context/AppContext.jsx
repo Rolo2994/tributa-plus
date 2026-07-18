@@ -14,7 +14,7 @@ export function AppProvider({ children }) {
   };
 
   const sincronizarDatos = useCallback(async () => {
-    pushLog('🔄 Sincronizando datos con Google Sheets...');
+    pushLog('🔄 Sincronizando datos...');
     try {
       const response = await getRucs();
       if (response?.ok && Array.isArray(response.data)) {
@@ -28,14 +28,16 @@ export function AppProvider({ children }) {
             grupo: String(r.GRUPO || r.Grupo || r.grupo || 'Sin Grupo').trim()
           }));
         setRucs(datosAdaptados);
-        pushLog(`✅ Sincronización exitosa: ${datosAdaptados.length} empresas.`);
+        pushLog(`✅ Sincronización exitosa.`);
       }
     } catch (error) {
-      pushLog('❌ Error: ' + error.message);
+      pushLog('❌ Error al sincronizar');
     }
   }, []);
 
+  // Validación: siempre retorna un array, nunca undefined
   const availableGroups = useMemo(() => {
+    if (!rucs || rucs.length === 0) return ['Todos'];
     return ['Todos', ...new Set(rucs.map(r => r.grupo).filter(g => g && g !== 'Sin Grupo'))];
   }, [rucs]);
 
