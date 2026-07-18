@@ -5,14 +5,11 @@ import { getRucs } from '../services/googleSheetsApi.js'
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
-  const [rucs, setRucs] = useState(RUCS)
-  const [activeRucId, setActiveRucId] = useState(RUCS[0].id)
+  const [rucs, setRucs] = useState([]) // Inicializamos como array vacío siempre
+  const [activeRucId, setActiveRucId] = useState('0')
   const [groupFilter, setGroupFilter] = useState('Todos')
-  
-  // Filtros dinámicos de periodo y tipo de declaración
-  const [vencimientoTipo, setVencimientoTipo] = useState('SIRE') // SIRE | DJ Mensual | DJ Anual
-  const [periodoActual, setPeriodoActual] = useState('Enero')    // Mes por defecto
-  
+  const [vencimientoTipo, setVencimientoTipo] = useState('SIRE')
+  const [periodoActual, setPeriodoActual] = useState('Enero')
   const [screen, setScreen] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [notesSheetRucId, setNotesSheetRucId] = useState(null)
@@ -36,20 +33,19 @@ export function AppProvider({ children }) {
       if (response && response.ok && Array.isArray(response.data)) {
         const datosAdaptados = response.data
           .filter(r => r && (r.RUC || r.ruc || r.id))
-          .map((r, index) => {
+          .map((r) => {
             const rucValor = String(r.RUC || r.ruc || r.id || '').trim()
             return {
               id: rucValor,
               ruc: rucValor,
               razonSocial: r['RAZON SOCIAL'] || r.razonSocial || 'Sin Razón Social',
-              grupo: r.GRUPO || r.grupo || 'General',
-              orden: String(r.ORDEN || r.orden || rucValor.slice(-1)).trim(), // Último dígito o BC
-              
+              // Limpiamos espacios extra al inicio y final del grupo
+              grupo: String(r.GRUPO || r.grupo || 'General').trim(), 
+              orden: String(r.ORDEN || r.orden || rucValor.slice(-1)).trim(),
               usuarioSol: r.USUARIO || r.usuarioSol || '',
               claveSol: r.CLAVE || r.claveSol || '',
               usuarioAfp: r['USUARIO AFP NET'] || r.usuarioAfp || '',
               claveAfp: r['CLAVE AFP NI'] || r.claveAfp || '',
-              
               vencimientos: Array.isArray(r.vencimientos) ? r.vencimientos : [], 
               alertas: Array.isArray(r.alertas) ? r.alertas : [],
               notas: r.notas || ''
@@ -77,12 +73,21 @@ export function AppProvider({ children }) {
     sincronizarDatos()
   }, [sincronizarDatos])
 
+  // --- LÓGICA DE GRUPOS DINÁMICOS ---
+  const availableGroups = useMemo(() => {
+    // 1. Extraer solo los grupos, ignorando vacíos
+    const groups = rucs.map(r => r.grupo).filter(g => g && g !== '')
+    // 2. Crear un Set para eliminar duplicados, y ordenarlos alfabéticamente
+    const uniqueGroups = [...new Set(groups)].sort()
+    // 3. Devolver 'Todos' siempre como primera opción, seguido del resto
+    return ['Todos', ...uniqueGroups]
+  }, [rucs])
+
   const activeRuc = useMemo(
-    () => rucs.find((r) => r.id === activeRucId) || rucs[0],
+    () => rucs.find((r) => r.id === activeRucId) || rucs[0] || {},
     [rucs, activeRucId]
   )
 
-  // Vencimiento dinámico filtrado según el RUC activo, el tipo seleccionado (SIRE/DJ) y el periodo
   const vencimientoActivo = useMemo(() => {
     if (!activeRuc || !Array.isArray(activeRuc.vencimientos)) return null
     return activeRuc.vencimientos.find(
@@ -90,16 +95,21 @@ export function AppProvider({ children }) {
     ) || { tipo: vencimientoTipo, periodo: periodoActual, fechaVence: 'No programado', estado: 'Pendiente' }
   }, [activeRuc, vencimientoTipo, periodoActual])
 
-  const visibleRucs = useMemo(
-    () => (groupFilter === 'Todos' ? rucs : rucs.filter((r) => r && r.grupo === groupFilter)),
-    [rucs, groupFilter]
-  )
+  // Filtro corregido para que no sea sensible a mayúsculas/minúsculas
+  const visibleRucs = useMemo(() => {
+    if (groupFilter === 'Todos') return rucs;
+    return rucs.filter((r) => {
+      if (!r.grupo) return false;
+      return String(r.grupo).toLowerCase() === String(groupFilter).toLowerCase();
+    });
+  }, [rucs, groupFilter]);
 
   const goScreen = useCallback((id) => setScreen(id), [])
 
   const value = {
-    rucs,
-    visibleRucs,
+    rucs: Array.isArray(rucs) ? rucs : [],
+    visibleRucs: Array.isArray(visibleRucs) ? visibleRucs : [],
+    availableGroups, // EXPORTAMOS LOS GRUPOS DINÁMICOS
     activeRuc,
     activeRucId,
     setActiveRucId,
