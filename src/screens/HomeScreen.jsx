@@ -10,10 +10,11 @@ const TABS = [
 ]
 
 export default function HomeScreen() {
-  const { visibleRucs, setNotesSheetRucId, goScreen, groupFilter } = useApp()
+  // Aseguramos que si visibleRucs es undefined/null, se convierta en un array vacío []
+  const { visibleRucs = [], setNotesSheetRucId, goScreen, groupFilter } = useApp()
 
   function openModuleAction(id) {
-    goScreen(id) // los ids de acción coinciden con los ids de pantalla (screen-buzon → 'buzon', etc.)
+    goScreen(id)
   }
 
   return (
