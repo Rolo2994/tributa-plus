@@ -28,7 +28,7 @@ export default function RucCard({ ruc, onClick }) {
         <div className="font-mono text-[11px] text-muted tracking-wide">{ruc.ruc}</div>
         <div className="font-semibold text-[13.5px] text-ink truncate mt-0.5">{ruc.razonSocial}</div>
         <div className="flex gap-1.5 mt-1.5 flex-wrap">
-          {ruc.tags.map((t, i) => (
+          {(ruc.tags || []).map((t, i) => (
             <span key={i} className={`text-[9.5px] font-semibold px-[7px] py-[2px] rounded-md ${TAG_TONE[t.tone]}`}>
               {t.label}
             </span>

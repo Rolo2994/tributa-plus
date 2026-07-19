@@ -13,6 +13,9 @@ const ACCIONES = [
 
 export default function ModulesScreen() {
   const { activeRuc, setDrawerOpen, goScreen, pushLog } = useApp()
+    if (!activeRuc) {
+      return <div className="flex-1 flex items-center justify-center text-muted text-[12px]">Sincronizando…</div>
+    }
 
   function autoLogin(pagina) {
     pushLog(`Iniciando sesión — ${activeRuc.razonSocial} → ${pagina}`)
