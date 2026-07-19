@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useApp } from './context/AppContext.jsx'
 import Header from './components/Header.jsx'
 import BottomNav from './components/BottomNav.jsx'
@@ -31,8 +31,13 @@ const SCREENS = {
 const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire'])
 
 export default function App() {
-  const { currentScreen } = useApp()
+  const { currentScreen, sincronizarDatos } = useApp()
   const [locked, setLocked] = useState(true)
+
+  // Disparador para cargar los datos apenas inicie la app
+  useEffect(() => {
+    sincronizarDatos();
+  }, [sincronizarDatos]);
 
   const ActiveScreen = SCREENS[currentScreen] || HomeScreen
 
