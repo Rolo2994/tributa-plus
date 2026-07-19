@@ -31,10 +31,10 @@ const SCREENS = {
 const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire'])
 
 export default function App() {
-  const { screen } = useApp()
+  const { currentScreen } = useApp()
   const [locked, setLocked] = useState(true)
 
-  const ActiveScreen = SCREENS[screen] || HomeScreen
+  const ActiveScreen = SCREENS[currentScreen] || HomeScreen
 
   return (
     <div className="min-h-screen flex items-start justify-center p-7 bg-[#D7DEE8]">
@@ -48,7 +48,7 @@ export default function App() {
         </div>
 
         <ConsoleLog />
-        {!SUBSCREENS.has(screen) && <BottomNav />}
+        {!SUBSCREENS.has(currentScreen) && <BottomNav />}
 
         <Drawer />
         <NotesSheet />
