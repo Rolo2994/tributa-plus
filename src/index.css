@@ -11,3 +11,7 @@ body { font-family: 'Inter', sans-serif; }
 
 /* Foco visible para accesibilidad de teclado (no lo oculta ningún reset) */
 :focus-visible { outline: 2px solid #0B3A60; outline-offset: 2px; }
+
+/* Respeta la muesca/cámara y la barra de gestos del celular */
+.app-safe-top { padding-top: max(env(safe-area-inset-top), 0px); }
+.app-safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }

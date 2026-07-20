@@ -51,7 +51,7 @@ const ITEMS = [
 export default function BottomNav() {
   const { screen, goScreen } = useApp()
   return (
-    <div className="absolute left-0 right-0 bottom-0 z-30 flex bg-white border-t border-bordersoft px-1.5 pt-2.5 pb-3">
+    <div className="app-safe-bottom absolute left-0 right-0 bottom-0 z-30 flex bg-white border-t border-bordersoft px-1.5 pt-2.5 pb-3">
       {ITEMS.map((item) => {
         const active = screen === item.id
         const color = active ? '#0B3A60' : '#68788A'

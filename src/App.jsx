@@ -33,8 +33,11 @@ export default function App() {
   const ActiveScreen = SCREENS[currentScreen] || HomeScreen
 
   return (
-    <div className="min-h-screen flex items-start justify-center p-7 bg-[#D7DEE8]">
-      <div className="relative w-full max-w-[412px] h-[860px] bg-bgapp rounded-[38px] overflow-hidden shadow-phone ring-[10px] ring-[#14181d] flex flex-col">
+    // ↓ CAMBIO: sin padding en celular (p-0), con padding solo en pantallas ≥640px (sm:p-7)
+    <div className="min-h-[100dvh] flex items-start justify-center bg-[#D7DEE8] p-0 sm:p-7">
+      {/* ↓ CAMBIO: ocupa toda la pantalla en celular (h-[100dvh], sin bordes ni marco),
+          y solo en pantallas anchas (sm:) recupera el tamaño fijo tipo "maqueta de celular" */}
+      <div className="relative w-full max-w-none sm:max-w-[412px] h-[100dvh] sm:h-[860px] bg-bgapp overflow-hidden rounded-none sm:rounded-[38px] shadow-none sm:shadow-phone ring-0 sm:ring-[10px] sm:ring-[#14181d] flex flex-col">
         <LockScreen visible={locked} onUnlock={() => setLocked(false)} />
         <Header onLock={() => setLocked(true)} />
 

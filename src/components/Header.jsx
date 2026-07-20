@@ -31,7 +31,7 @@ export default function Header({ onLock }) {
   const vencidosHoy = 2 // valor de ejemplo — vendría del cronograma real
 
   return (
-    <div className="relative flex-shrink-0 bg-gradient-to-b from-azul-inst to-azul-dark px-[18px] pt-4 pb-3.5 after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[3px] after:bg-rojo-sunat">
+    <div className="app-safe-top relative flex-shrink-0 bg-gradient-to-b from-azul-inst to-azul-dark px-[18px] pt-4 pb-3.5 after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[3px] after:bg-rojo-sunat">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-[10px] bg-white/10 border border-white/20 flex items-center justify-center">
