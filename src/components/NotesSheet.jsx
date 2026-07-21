@@ -2,27 +2,21 @@ import React, { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import { useLocalStorage } from '../hooks/useLocalStorage.js'
 import { NOTAS_INICIALES, TRIBUTO_COLORS } from '../data/mockData.js'
+import { construirMensajeNota } from '../utils/construirMensajeNota.js'
 
 const TRIBUTOS_DISPONIBLES = ['PLAME', 'Detracción', 'Multa', 'Fraccionamiento', 'Otro']
 
-/**
- * Bottom sheet de notas por RUC — persistido en localStorage
- * (tributaplus_notas). Cada RUC tiene su propio arreglo de tributos
- * (nombre, monto, fecha) más un campo de observaciones libre. Todo
- * es editable inline: montos y fechas se pueden tocar y cambiar.
- *
- * saveToCloud() es donde, al conectar Google Sheets, llamarías a
- * services/googleSheetsApi.js → saveNotas(ruc, notas).
- */
 export default function NotesSheet() {
   const { notesSheetRucId, setNotesSheetRucId, rucs, pushLog } = useApp()
   const [allNotes, setAllNotes] = useLocalStorage('tributaplus_notas', NOTAS_INICIALES)
   const [addingOpen, setAddingOpen] = useState(false)
-  const [newTrib, setNewTrib] = useState({ nombre: 'PLAME', monto: '', fecha: '' })
+  const [newTrib, setNewTrib] = useState({ nombre: 'PLAME', monto: '', fecha: '', hora: '09:00' })
 
   const open = !!notesSheetRucId
   const ruc = rucs.find((r) => r.id === notesSheetRucId)
-  const notas = notesSheetRucId ? allNotes[notesSheetRucId] || { observaciones: '', tributos: [] } : { observaciones: '', tributos: [] }
+  const notas = notesSheetRucId
+    ? allNotes[notesSheetRucId] || { observaciones: '', tributos: [] }
+    : { observaciones: '', tributos: [] }
 
   function updateNotas(patch) {
     if (!notesSheetRucId) return
@@ -36,6 +30,12 @@ export default function NotesSheet() {
     updateNotas({ tributos: notas.tributos.map((t) => (t.id === id ? { ...t, [field]: value } : t)) })
   }
 
+  function toggleRecordar(id) {
+    updateNotas({
+      tributos: notas.tributos.map((t) => (t.id === id ? { ...t, recordar: !t.recordar } : t)),
+    })
+  }
+
   function removeTributo(id) {
     updateNotas({ tributos: notas.tributos.filter((t) => t.id !== id) })
   }
@@ -46,10 +46,17 @@ export default function NotesSheet() {
     updateNotas({
       tributos: [
         ...notas.tributos,
-        { id, nombre: newTrib.nombre, monto: Number(newTrib.monto), fecha: newTrib.fecha || new Date().toISOString().slice(0, 10) },
+        {
+          id,
+          nombre: newTrib.nombre,
+          monto: Number(newTrib.monto),
+          fecha: newTrib.fecha || new Date().toISOString().slice(0, 10),
+          hora: newTrib.hora || '09:00',
+          recordar: true,
+        },
       ],
     })
-    setNewTrib({ nombre: 'PLAME', monto: '', fecha: '' })
+    setNewTrib({ nombre: 'PLAME', monto: '', fecha: '', hora: '09:00' })
     setAddingOpen(false)
     pushLog(`Tributo agregado manualmente: ${newTrib.nombre}`)
   }
@@ -59,10 +66,24 @@ export default function NotesSheet() {
   }
 
   function save() {
-    // Aquí es donde, con Google Sheets ya conectado, llamarías:
-    // await saveNotas(ruc.id, notas)
     pushLog('Notas guardadas — sincronizando con Google Sheets…')
     close()
+  }
+
+  async function compartirPorWhatsApp() {
+    if (!ruc) return
+    const texto = construirMensajeNota(ruc, notas)
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Recordatorio — ${ruc.razonSocial}`, text: texto })
+        pushLog(`Nota compartida — ${ruc.razonSocial}`)
+      } catch (err) {
+        // el usuario canceló el selector — no es un error real
+      }
+    } else {
+      const url = `https://wa.me/?text=${encodeURIComponent(texto)}`
+      window.open(url, '_blank')
+    }
   }
 
   return (
@@ -91,29 +112,47 @@ export default function NotesSheet() {
 
         <div className="px-5 pt-3.5 pb-6 overflow-y-auto">
           {notas.tributos.map((t) => (
-            <div key={t.id} className="flex items-center gap-2.5 py-2.5 border-b border-[#F1F4F8]">
-              <div
-                className="w-[38px] h-[38px] rounded-[10px] flex-shrink-0 flex items-center justify-center font-display font-bold text-[11px] text-white"
-                style={{ background: TRIBUTO_COLORS[t.nombre] || '#68788A' }}
-              >
-                {t.nombre.slice(0, 3).toUpperCase()}
-              </div>
-              <div className="flex-1">
-                <div className="text-[12.5px] font-semibold text-ink">{t.nombre}</div>
+            <div key={t.id} className="py-2.5 border-b border-[#F1F4F8]">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className="w-[38px] h-[38px] rounded-[10px] flex-shrink-0 flex items-center justify-center font-display font-bold text-[11px] text-white"
+                  style={{ background: TRIBUTO_COLORS[t.nombre] || '#68788A' }}
+                >
+                  {t.nombre.slice(0, 3).toUpperCase()}
+                </div>
+                <div className="flex-1">
+                  <div className="text-[12.5px] font-semibold text-ink">{t.nombre}</div>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <input
+                      type="date"
+                      value={t.fecha}
+                      onChange={(e) => updateTributo(t.id, 'fecha', e.target.value)}
+                      className="text-[10.5px] text-muted border-none bg-transparent p-0"
+                    />
+                    <input
+                      type="time"
+                      value={t.hora || '09:00'}
+                      onChange={(e) => updateTributo(t.id, 'hora', e.target.value)}
+                      className="text-[10.5px] text-muted border-none bg-transparent p-0"
+                    />
+                  </div>
+                </div>
                 <input
-                  type="date"
-                  value={t.fecha}
-                  onChange={(e) => updateTributo(t.id, 'fecha', e.target.value)}
-                  className="text-[10.5px] text-muted mt-0.5 border-none bg-transparent p-0"
+                  value={t.monto}
+                  onChange={(e) => updateTributo(t.id, 'monto', e.target.value)}
+                  className="font-mono font-semibold text-[13px] text-ink text-right w-[70px] rounded-md px-1.5 py-1 border border-transparent focus:border-azul-inst focus:bg-[#F7FAFD] outline-none"
                 />
+                <button onClick={() => removeTributo(t.id)} className="text-[#C3CEDA] text-[15px] px-1">
+                  ✕
+                </button>
               </div>
-              <input
-                value={t.monto}
-                onChange={(e) => updateTributo(t.id, 'monto', e.target.value)}
-                className="font-mono font-semibold text-[13px] text-ink text-right w-[78px] rounded-md px-1.5 py-1 border border-transparent focus:border-azul-inst focus:bg-[#F7FAFD] outline-none"
-              />
-              <button onClick={() => removeTributo(t.id)} className="text-[#C3CEDA] text-[15px] px-1">
-                ✕
+              <button
+                onClick={() => toggleRecordar(t.id)}
+                className={`mt-1.5 ml-[48px] text-[10px] font-semibold px-2 py-1 rounded-full ${
+                  t.recordar ? 'bg-[#EAF6EF] text-verde' : 'bg-[#F1F4F8] text-muted'
+                }`}
+              >
+                🔔 {t.recordar ? 'Recordatorio activo' : 'Sin recordatorio'}
               </button>
             </div>
           ))}
@@ -153,6 +192,12 @@ export default function NotesSheet() {
                 onChange={(e) => setNewTrib((p) => ({ ...p, fecha: e.target.value }))}
                 className="flex-1 min-w-[120px] text-[12px] border border-bordersoft rounded-lg p-2"
               />
+              <input
+                type="time"
+                value={newTrib.hora}
+                onChange={(e) => setNewTrib((p) => ({ ...p, hora: e.target.value }))}
+                className="flex-1 min-w-[100px] text-[12px] border border-bordersoft rounded-lg p-2"
+              />
               <button onClick={addTributo} className="w-full mt-1 py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12.5px]">
                 Agregar
               </button>
@@ -167,7 +212,18 @@ export default function NotesSheet() {
             className="w-full bg-[#F7F9FB] border border-bordersoft rounded-xl p-3 text-[12px] text-ink resize-none"
           />
 
-          <div className="flex gap-2.5 mt-4">
+          <button
+            onClick={compartirPorWhatsApp}
+            className="w-full mt-4 py-3 rounded-xl bg-[#25D366] text-white font-semibold text-[12.5px] flex items-center justify-center gap-2"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2">
+              <path d="M21 11.5a8.4 8.4 0 01-9 8.4A8.5 8.5 0 013 12a8.5 8.5 0 0117-.5Z" />
+              <path d="M8 12h.01M12 12h.01M16 12h.01" />
+            </svg>
+            Enviar por WhatsApp
+          </button>
+
+          <div className="flex gap-2.5 mt-2.5">
             <button onClick={close} className="flex-1 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">
               Cerrar
             </button>
