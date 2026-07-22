@@ -106,4 +106,3 @@ export function useReminders(rucs) {
 
   return { permission, requestPermission }
 }
-}
