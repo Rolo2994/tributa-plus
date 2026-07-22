@@ -7,7 +7,6 @@ import ConsoleLog from './components/ConsoleLog.jsx'
 import LockScreen from './components/LockScreen.jsx'
 import NotesSheet from './components/NotesSheet.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
-import { useReminders } from './hooks/useReminders.js'
 
 import HomeScreen from './screens/HomeScreen.jsx'
 import AlertsScreen from './screens/AlertsScreen.jsx'
@@ -27,7 +26,6 @@ const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire'])
 
 export default function App() {
   const { currentScreen, sincronizarDatos, syncing, syncError, rucs } = useApp()
-  useReminders(rucs, () => {})
   const [locked, setLocked] = useState(true)
 
   useEffect(() => { sincronizarDatos() }, [sincronizarDatos])

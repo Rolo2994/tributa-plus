@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useEffect } from 'react'
 import { getRucs } from '../services/googleSheetsApi.js'
 import { normalizeRuc } from '../utils/normalizeRuc.js'
+import { useReminders } from '../hooks/useReminders.js'
 
 const AppContext = createContext(null)
 
 export function AppProvider({ children }) {
   const [rucs, setRucs] = useState([])
+  const { permission: notifPermission, requestPermission: requestNotifPermission } = useReminders(rucs)
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState(null)
 
@@ -85,6 +87,7 @@ export function AppProvider({ children }) {
     pendingSendCount, setPendingSendCount,
     logs, pushLog,
     syncing, syncError, sincronizarDatos,
+    notifPermission, requestNotifPermission,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

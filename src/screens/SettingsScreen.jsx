@@ -3,7 +3,18 @@ import { useApp } from '../context/AppContext.jsx'
 import { clearBiometric, hasRegisteredCredential } from '../hooks/useWebAuthn.js'
 
 export default function SettingsScreen() {
-  const { groupFilter, setGroupFilter, vencimientoTipo, setVencimientoTipo, pushLog, availableGroups } = useApp()
+  // Se agregó notifPermission y requestNotifPermission a la desestructuración de useApp()
+  const { 
+    groupFilter, 
+    setGroupFilter, 
+    vencimientoTipo, 
+    setVencimientoTipo, 
+    pushLog, 
+    availableGroups,
+    notifPermission, 
+    requestNotifPermission 
+  } = useApp()
+  
   const [bioOn, setBioOn] = useState(hasRegisteredCredential())
   const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
 
@@ -45,6 +56,24 @@ export default function SettingsScreen() {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Nuevo Bloque de Notificaciones */}
+      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
+        <div className="font-bold text-[12.5px] mb-1">Notificaciones</div>
+        <div className="text-[10.5px] text-muted mb-2.5">
+          {notifPermission === 'granted' && '✓ Activadas — recibirás avisos de tus recordatorios.'}
+          {notifPermission === 'denied' && 'Bloqueadas por el navegador. Actívalas manualmente en Ajustes del sitio.'}
+          {notifPermission === 'default' && 'Aún no activadas.'}
+        </div>
+        {notifPermission === 'default' && (
+          <button
+            onClick={requestNotifPermission}
+            className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px]"
+          >
+            🔔 Activar notificaciones
+          </button>
+        )}
       </div>
     </div>
   )
