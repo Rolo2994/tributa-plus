@@ -12,6 +12,9 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       manifest: {
         name: 'Tributa+ — Gestión SUNAT',
         short_name: 'Tributa+',
@@ -25,12 +28,6 @@ export default defineConfig({
           { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any maskable' }
         ]
       },
-      workbox: {
-        // Cachea los assets de la app para que abra offline con los
-        // últimos datos sincronizados (el Excel/Sheet en sí no se
-        // cachea aquí; eso lo maneja la capa de sincronización).
-        globPatterns: ['**/*.{js,css,html,svg,png,ico}']
-      }
     })
   ]
 })
