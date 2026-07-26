@@ -75,3 +75,8 @@ export function saveNotas(ruc, notas) {
 export function logActivity(ruc, mensaje) {
   return callApi('logActivity', { ruc, mensaje }, 'POST')
 }
+
+/** Lista el catálogo de tributos (hoja "Tributos": TRIBUTO | DECLARACION). */
+export function getTributos() {
+  return callApi('listTributos')
+}

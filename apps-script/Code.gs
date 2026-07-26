@@ -33,6 +33,7 @@ const HOJA_RUCS = 'RUCs'
 const HOJA_NOTAS = 'Notas'
 const HOJA_LOG = 'Log'
 const HOJAS_VENC = { SIRE: 'sire', 'DJ Mensual': 'dj mensual', 'DJ Anual': 'dj anual' }
+const HOJA_TRIBUTOS = 'Tributos'
 
 // ── Punto de entrada para peticiones GET (lecturas) ──────────────
 function doGet(e) {
@@ -45,6 +46,8 @@ function doGet(e) {
       data = getVencimientos_(e.parameter.tipo, e.parameter.mes, e.parameter.anio)
     } else if (action === 'getNotas') {
       data = getNotas_(e.parameter.ruc)
+    } else if (action === 'listTributos') {
+      data = listTributos_()
     } else {
       throw new Error('Acción GET no reconocida: ' + action)
     }
@@ -93,6 +96,19 @@ function listRucs_() {
     headers.forEach((h, i) => {
       obj[String(h).trim()] = r[i]
     })
+    return obj
+  })
+}
+
+function listTributos_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_TRIBUTOS)
+  if (!sheet) throw new Error('No se encontró la hoja "' + HOJA_TRIBUTOS + '"')
+  const values = sheet.getDataRange().getValues()
+  const headers = values[0]
+  const rows = values.slice(1).filter((r) => r[0])
+  return rows.map((r) => {
+    const obj = {}
+    headers.forEach((h, i) => { obj[String(h).trim()] = r[i] })
     return obj
   })
 }
