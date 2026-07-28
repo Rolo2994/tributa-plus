@@ -48,6 +48,8 @@ function doGet(e) {
       data = getNotas_(e.parameter.ruc)
     } else if (action === 'listTributos') {
       data = listTributos_()
+    } else if (action === 'listNotas') {
+      data = listNotas_()
     } else {
       throw new Error('Acción GET no reconocida: ' + action)
     }
@@ -171,6 +173,22 @@ function getOrCreateNotasSheet_() {
     sheet.appendRow(['RUC', 'JSON_NOTAS', 'Última actualización'])
   }
   return sheet
+}
+
+function listNotas_() {
+  const sheet = getOrCreateNotasSheet_()
+  const values = sheet.getDataRange().getValues()
+  const resultado = {}
+  values.slice(1).forEach((r) => {
+    const ruc = String(r[0]).trim()
+    if (!ruc) return
+    try {
+      resultado[ruc] = JSON.parse(r[1])
+    } catch (e) {
+      resultado[ruc] = { observaciones: '', tributos: [] }
+    }
+  })
+  return resultado
 }
 
 // ── Log de actividad (auditoría opcional) ─────────────────────────

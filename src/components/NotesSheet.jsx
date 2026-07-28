@@ -9,6 +9,7 @@ export default function NotesSheet() {
     tributos, tributosBase,
     getNotasForRuc, updateNotasForRuc, addTributoToRuc,
     updateTributoDeRuc, toggleRecordarTributo, removeTributoDeRuc,
+    flushNotasForRuc,
   } = useApp()
   const [addingOpen, setAddingOpen] = useState(false)
 
@@ -17,7 +18,11 @@ export default function NotesSheet() {
   const notas = notesSheetRucId ? getNotasForRuc(notesSheetRucId) : { observaciones: '', tributos: [] }
 
   function close() { setNotesSheetRucId(null) }
-  function save() { pushLog('Notas guardadas — sincronizando con Google Sheets…'); close() }
+  async function save() {
+    pushLog('Guardando notas en Google Sheets…')
+    await flushNotasForRuc(notesSheetRucId)
+    close()
+  }
 
   function handleAdd(data) {
     if (!notesSheetRucId) return

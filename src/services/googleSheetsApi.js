@@ -80,3 +80,8 @@ export function logActivity(ruc, mensaje) {
 export function getTributos() {
   return callApi('listTributos')
 }
+
+/** Trae las notas de TODOS los RUCs de una sola vez (para sincronizar al abrir la app). */
+export function getAllNotas() {
+  return callApi('listNotas')
+}

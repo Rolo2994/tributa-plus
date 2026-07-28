@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react'
-import { getRucs, getTributos } from '../services/googleSheetsApi.js'
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { getRucs, getTributos, getAllNotas, saveNotas } from '../services/googleSheetsApi.js'
 import { normalizeRuc } from '../utils/normalizeRuc.js'
 import { normalizeTributos } from '../utils/tributosPalette.js'
 import { useReminders } from '../hooks/useReminders.js'
@@ -24,7 +24,11 @@ export function AppProvider({ children }) {
   const [contactPickerOpen, setContactPickerOpen] = useState(false)
   const [pendingSendCount, setPendingSendCount] = useState(0)
 
+  // Caché local (offline) — se sincroniza con el Sheet apenas hay conexión.
   const [allNotas, setAllNotas] = useLocalStorage('tributaplus_notas', {})
+  const allNotasRef = useRef(allNotas)
+  useEffect(() => { allNotasRef.current = allNotas }, [allNotas])
+  const saveTimers = useRef({})
 
   const [logs, setLogs] = useState([{ id: 0, ts: new Date(), msg: 'Iniciando Tributa+…' }])
 
@@ -38,11 +42,40 @@ export function AppProvider({ children }) {
 
   const goScreen = useCallback((id) => setCurrentScreen(id), [])
 
+  // ── Guardado en la nube, con espera breve para no saturar mientras escribes ──
+  const scheduleCloudSave = useCallback((rucId, notas) => {
+    if (saveTimers.current[rucId]) clearTimeout(saveTimers.current[rucId])
+    saveTimers.current[rucId] = setTimeout(async () => {
+      try {
+        await saveNotas(rucId, JSON.stringify(notas))
+        pushLog('☁ Notas sincronizadas con Google Sheets')
+      } catch (err) {
+        pushLog(`✗ No se pudo guardar en Sheets (quedó guardado en este celular): ${err?.message || err}`)
+      }
+    }, 900)
+  }, [pushLog])
+
+  // Fuerza el guardado inmediato (usado por el botón "Guardar notas").
+  const flushNotasForRuc = useCallback(async (rucId) => {
+    if (saveTimers.current[rucId]) {
+      clearTimeout(saveTimers.current[rucId])
+      delete saveTimers.current[rucId]
+    }
+    const notas = allNotasRef.current[rucId]
+    if (!notas) return
+    try {
+      await saveNotas(rucId, JSON.stringify(notas))
+      pushLog('☁ Notas sincronizadas con Google Sheets')
+    } catch (err) {
+      pushLog(`✗ No se pudo guardar en Sheets (quedó guardado en este celular): ${err?.message || err}`)
+    }
+  }, [pushLog])
+
   const sincronizarDatos = useCallback(async () => {
     setSyncing(true)
     setSyncError(null)
     try {
-      const [rucsRes, tributosRes] = await Promise.all([getRucs(), getTributos()])
+      const [rucsRes, tributosRes, notasRes] = await Promise.all([getRucs(), getTributos(), getAllNotas()])
 
       if (rucsRes?.ok && Array.isArray(rucsRes.data)) {
         const normalizados = rucsRes.data.map(normalizeRuc)
@@ -58,6 +91,13 @@ export function AppProvider({ children }) {
       } else {
         pushLog(`⚠ No se pudo leer la hoja "Tributos": ${tributosRes?.error || 'respuesta inesperada'}`)
       }
+
+      if (notasRes?.ok && notasRes.data && typeof notasRes.data === 'object') {
+        setAllNotas(notasRes.data)
+        pushLog('☁ Notas cargadas desde Google Sheets')
+      } else {
+        pushLog(`⚠ No se pudieron cargar las notas de la nube — usando la copia local: ${notasRes?.error || 'respuesta inesperada'}`)
+      }
     } catch (err) {
       const msg = err?.message || String(err)
       setSyncError(msg)
@@ -65,7 +105,7 @@ export function AppProvider({ children }) {
     } finally {
       setSyncing(false)
     }
-  }, [pushLog])
+  }, [pushLog, setAllNotas])
 
   const activeRuc = useMemo(() => rucs.find((r) => r.id === activeRucId) || rucs[0] || null, [rucs, activeRucId])
 
@@ -81,36 +121,38 @@ export function AppProvider({ children }) {
 
   const tributosBase = useMemo(() => tributos.filter((t) => t.esBase), [tributos])
 
-  // ── Notas por RUC, centralizadas aquí para que Home, Alertas y el sheet de notas compartan los mismos datos ──
   const getNotasForRuc = useCallback((rucId) => allNotas[rucId] || { observaciones: '', tributos: [] }, [allNotas])
 
   const updateNotasForRuc = useCallback((rucId, patch) => {
-    setAllNotas((prev) => ({ ...prev, [rucId]: { ...(prev[rucId] || { observaciones: '', tributos: [] }), ...patch } }))
-  }, [setAllNotas])
+    setAllNotas((prev) => {
+      const next = { ...prev, [rucId]: { ...(prev[rucId] || { observaciones: '', tributos: [] }), ...patch } }
+      scheduleCloudSave(rucId, next[rucId])
+      return next
+    })
+  }, [setAllNotas, scheduleCloudSave])
 
   const addTributoToRuc = useCallback((rucId, data) => {
-    const actuales = allNotas[rucId]?.tributos || []
+    const actuales = allNotasRef.current[rucId]?.tributos || []
     const nuevo = { id: 't' + Date.now(), recordar: true, ...data }
     updateNotasForRuc(rucId, { tributos: [...actuales, nuevo] })
     return nuevo
-  }, [allNotas, updateNotasForRuc])
+  }, [updateNotasForRuc])
 
   const updateTributoDeRuc = useCallback((rucId, tributoId, field, value) => {
-    const actuales = allNotas[rucId]?.tributos || []
+    const actuales = allNotasRef.current[rucId]?.tributos || []
     updateNotasForRuc(rucId, { tributos: actuales.map((t) => (t.id === tributoId ? { ...t, [field]: value } : t)) })
-  }, [allNotas, updateNotasForRuc])
+  }, [updateNotasForRuc])
 
   const toggleRecordarTributo = useCallback((rucId, tributoId) => {
-    const actuales = allNotas[rucId]?.tributos || []
+    const actuales = allNotasRef.current[rucId]?.tributos || []
     updateNotasForRuc(rucId, { tributos: actuales.map((t) => (t.id === tributoId ? { ...t, recordar: !t.recordar } : t)) })
-  }, [allNotas, updateNotasForRuc])
+  }, [updateNotasForRuc])
 
   const removeTributoDeRuc = useCallback((rucId, tributoId) => {
-    const actuales = allNotas[rucId]?.tributos || []
+    const actuales = allNotasRef.current[rucId]?.tributos || []
     updateNotasForRuc(rucId, { tributos: actuales.filter((t) => t.id !== tributoId) })
-  }, [allNotas, updateNotasForRuc])
+  }, [updateNotasForRuc])
 
-  // ── Lista global de recordatorios activos, para la pantalla de Alertas ──
   const recordatoriosActivos = useMemo(() => {
     const lista = []
     Object.entries(allNotas).forEach(([rucId, nota]) => {
@@ -138,6 +180,7 @@ export function AppProvider({ children }) {
     tributos, tributosBase,
     getNotasForRuc, updateNotasForRuc, addTributoToRuc,
     updateTributoDeRuc, toggleRecordarTributo, removeTributoDeRuc,
+    flushNotasForRuc,
     recordatoriosActivos,
   }
 
