@@ -155,7 +155,7 @@ function saveNotas_(ruc, notasJsonString) {
   const sheet = getOrCreateNotasSheet_()
   const values = sheet.getDataRange().getValues()
   const idx = values.findIndex((r) => String(r[0]).trim() === String(ruc).trim())
-  const ahora = new Date()
+  const ahora = Utilities.formatDate(new Date(), 'GMT-5', 'dd/MM/yyyy HH:mm:ss')
 
   if (idx === -1) {
     sheet.appendRow([ruc, notasJsonString, ahora])
@@ -199,6 +199,7 @@ function logActivity_(ruc, mensaje) {
     sheet = ss.insertSheet(HOJA_LOG)
     sheet.appendRow(['Fecha/Hora', 'RUC', 'Mensaje'])
   }
-  sheet.appendRow([new Date(), ruc, mensaje])
+  const ahora = Utilities.formatDate(new Date(), 'GMT-5', 'dd/MM/yyyy HH:mm:ss')
+  sheet.appendRow([ahora, ruc, mensaje])
   return { logged: true }
 }

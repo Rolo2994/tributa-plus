@@ -61,8 +61,10 @@ export default function App() {
         <ConsoleLog />
         {!SUBSCREENS.has(currentScreen) && <BottomNav />}
 
+        <ErrorBoundary>
         <Drawer />
         <NotesSheet />
+        </ErrorBoundary>
       </div>
     </div>
   )
