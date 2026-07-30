@@ -93,7 +93,13 @@ export function AppProvider({ children }) {
       }
 
       if (notasRes?.ok && notasRes.data && typeof notasRes.data === 'object') {
-        setAllNotas(notasRes.data)
+        const notasNormalizadas = Object.fromEntries(
+          Object.entries(notasRes.data).map(([rucId, n]) => [
+            rucId,
+            { observaciones: n?.observaciones || '', tributos: Array.isArray(n?.tributos) ? n.tributos : [] },
+          ])
+        )
+        setAllNotas(notasNormalizadas)
         pushLog('☁ Notas cargadas desde Google Sheets')
       } else {
         pushLog(`⚠ No se pudieron cargar las notas de la nube — usando la copia local: ${notasRes?.error || 'respuesta inesperada'}`)
@@ -121,7 +127,13 @@ export function AppProvider({ children }) {
 
   const tributosBase = useMemo(() => tributos.filter((t) => t.esBase), [tributos])
 
-  const getNotasForRuc = useCallback((rucId) => allNotas[rucId] || { observaciones: '', tributos: [] }, [allNotas])
+  const getNotasForRuc = useCallback((rucId) => {
+    const raw = allNotas[rucId]
+    return {
+      observaciones: raw?.observaciones || '',
+      tributos: Array.isArray(raw?.tributos) ? raw.tributos : [],
+    }
+  }, [allNotas])
 
   const updateNotasForRuc = useCallback((rucId, patch) => {
     setAllNotas((prev) => {
