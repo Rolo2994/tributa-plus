@@ -12,7 +12,9 @@ export default function SettingsScreen() {
     pushLog, 
     availableGroups,
     notifPermission, 
-    requestNotifPermission 
+    requestNotifPermission,
+    sincronizarDatos, 
+    syncing,
   } = useApp()
   
   const [bioOn, setBioOn] = useState(hasRegisteredCredential())
@@ -74,6 +76,20 @@ export default function SettingsScreen() {
             🔔 Activar notificaciones
           </button>
         )}
+      </div>
+
+      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
+        <div className="font-bold text-[12.5px] mb-1">Sincronización</div>
+        <div className="text-[10.5px] text-muted mb-2.5">
+          Trae los datos más recientes de Google Sheets (RUCs, tributos y notas de todos los dispositivos).
+        </div>
+        <button
+          onClick={sincronizarDatos}
+          disabled={syncing}
+          className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px] disabled:opacity-50"
+        >
+          {syncing ? 'Sincronizando…' : '🔄 Sincronizar ahora'}
+        </button>
       </div>
     </div>
   )
