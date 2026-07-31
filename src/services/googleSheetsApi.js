@@ -35,8 +35,8 @@ async function callApi(action, params = {}, method = 'GET') {
   }
 
   if (method === 'GET') {
-    const query = new URLSearchParams({ action, ...params }).toString()
-    const res = await fetch(`${BASE_URL}?${query}`, { redirect: 'follow' })
+    const query = new URLSearchParams({ action, ...params, _t: Date.now() }).toString()
+    const res = await fetch(`${BASE_URL}?${query}`, { redirect: 'follow', cache: 'no-store' })
     if (!res.ok) throw new Error(`Error ${res.status} al llamar a Google Sheets`)
     return res.json()
   }
