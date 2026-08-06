@@ -145,7 +145,11 @@ function getNotas_(ruc) {
   const fila = values.find((r) => String(r[0]).trim() === String(ruc).trim())
   if (!fila) return { observaciones: '', tributos: [] }
   try {
-    return JSON.parse(fila[1])
+    let parsed = JSON.parse(fila[1])
+    if (typeof parsed === 'string') {
+      parsed = JSON.parse(parsed)
+    }
+    return parsed
   } catch (e) {
     return { observaciones: '', tributos: [] }
   }
@@ -183,7 +187,12 @@ function listNotas_() {
     const ruc = String(r[0]).trim()
     if (!ruc) return
     try {
-      resultado[ruc] = JSON.parse(r[1])
+      let parsed = JSON.parse(r[1])
+      // Si quedó guardado doblemente codificado (bug anterior), lo desenreda.
+      if (typeof parsed === 'string') {
+        parsed = JSON.parse(parsed)
+      }
+      resultado[ruc] = parsed
     } catch (e) {
       resultado[ruc] = { observaciones: '', tributos: [] }
     }

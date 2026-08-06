@@ -47,7 +47,7 @@ export function AppProvider({ children }) {
     if (saveTimers.current[rucId]) clearTimeout(saveTimers.current[rucId])
     saveTimers.current[rucId] = setTimeout(async () => {
       try {
-        await saveNotas(rucId, JSON.stringify(notas))
+        await saveNotas(rucId, notas)
         pushLog('☁ Notas sincronizadas con Google Sheets')
       } catch (err) {
         pushLog(`✗ No se pudo guardar en Sheets (quedó guardado en este celular): ${err?.message || err}`)
@@ -64,7 +64,7 @@ export function AppProvider({ children }) {
     const notas = allNotasRef.current[rucId]
     if (!notas) return
     try {
-      await saveNotas(rucId, JSON.stringify(notas))
+      await saveNotas(rucId, notas)
       pushLog('☁ Notas sincronizadas con Google Sheets')
     } catch (err) {
       pushLog(`✗ No se pudo guardar en Sheets (quedó guardado en este celular): ${err?.message || err}`)
@@ -76,7 +76,6 @@ export function AppProvider({ children }) {
     setSyncError(null)
     try {
       const [rucsRes, tributosRes, notasRes] = await Promise.all([getRucs(), getTributos(), getAllNotas()])
-      console.log('🔍 DEBUG notasRes:', JSON.stringify(notasRes))
 
       if (rucsRes?.ok && Array.isArray(rucsRes.data)) {
         const normalizados = rucsRes.data.map(normalizeRuc)
