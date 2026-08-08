@@ -170,7 +170,7 @@ export function AppProvider({ children }) {
     updateNotasForRuc(rucId, { tributos: actuales.map((t) => (t.id === tributoId ? { ...t, ...data } : t)) })
   }, [updateNotasForRuc])
 
-  const recordatoriosActivos = useMemo(() => {
+  const todosLosRecordatorios = useMemo(() => {
     const lista = []
     Object.entries(allNotas).forEach(([rucId, nota]) => {
       const ruc = rucs.find((r) => r.id === rucId)
@@ -198,7 +198,7 @@ export function AppProvider({ children }) {
     getNotasForRuc, updateNotasForRuc, addTributoToRuc,
     updateTributoDeRuc, toggleRecordarTributo, removeTributoDeRuc, editTributoDeRuc,
     flushNotasForRuc,
-    recordatoriosActivos,
+    todosLosRecordatorios,
   }
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>
