@@ -5,7 +5,7 @@ import TributoForm from '../components/TributoForm.jsx'
 
 export default function AlertsScreen() {
   const {
-    pushLog, recordatoriosActivos, toggleRecordarTributo,
+    pushLog, todosLosRecordatorios, toggleRecordarTributo, editTributoDeRuc,
     rucs, tributos, tributosBase, addTributoToRuc,
   } = useApp()
   const [pushOn, setPushOn] = useState(true)
@@ -13,15 +13,25 @@ export default function AlertsScreen() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [rucElegido, setRucElegido] = useState(null)
+  const [editingItem, setEditingItem] = useState(null)
+
+  const activos = todosLosRecordatorios.filter((r) => r.recordar)
+  const inactivos = todosLosRecordatorios.filter((r) => !r.recordar)
 
   const rucsFiltrados = rucs.filter(
     (r) => r.ruc.includes(search) || r.razonSocial.toLowerCase().includes(search.toLowerCase())
   )
 
   function abrirPicker() {
+    setEditingItem(null)
     setRucElegido(null)
     setSearch('')
     setPickerOpen(true)
+  }
+
+  function abrirEdicion(item) {
+    setPickerOpen(false)
+    setEditingItem(item)
   }
 
   function handleAgregar(data) {
@@ -29,6 +39,41 @@ export default function AlertsScreen() {
     addTributoToRuc(rucElegido.id, data)
     pushLog(`Recordatorio agregado para ${rucElegido.razonSocial}: ${data.nombre}`)
     setPickerOpen(false)
+  }
+
+  function handleEditar(data) {
+    if (!editingItem) return
+    editTributoDeRuc(editingItem.rucId, editingItem.id, data)
+    pushLog(`Recordatorio actualizado: ${data.nombre}`)
+    setEditingItem(null)
+  }
+
+  function renderCard(r) {
+    const activo = r.recordar
+    return (
+      <div
+        key={`${r.rucId}-${r.id}`}
+        onClick={() => abrirEdicion(r)}
+        className={`bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5 cursor-pointer ${activo ? '' : 'opacity-60'}`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold text-ink truncate flex items-center gap-1.5">
+              {r.esTarea && <span className="text-[9px] bg-[#EFE9FB] text-[#5B3FA8] font-bold px-1.5 py-[1px] rounded">TAREA</span>}
+              {r.nombre}{r.tributoAsociado ? ` · ${r.tributoAsociado}` : ''}
+            </div>
+            <div className="text-[10.5px] text-muted mt-0.5 truncate">{r.rucNombre} · {r.rucNumero}</div>
+            <div className="text-[10px] text-muted">{r.periodoMes} {r.periodoAnio} · {r.fecha} {r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleRecordarTributo(r.rucId, r.id) }}
+            className={`flex-shrink-0 text-[10px] font-semibold px-2.5 py-1.5 rounded-full ${activo ? 'text-rojo-sunat bg-[#FCE9EB]' : 'text-verde bg-[#EAF6EF]'}`}
+          >
+            {activo ? 'Desactivar' : 'Reactivar'}
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -49,32 +94,18 @@ export default function AlertsScreen() {
       </div>
 
       <div className="flex items-center justify-between mt-5 mb-2.5">
-        <h2 className="font-display font-bold text-[14px] text-ink">Recordatorios</h2>
+        <h2 className="font-display font-bold text-[14px] text-ink">Recordatorios activos</h2>
         <button onClick={abrirPicker} className="text-[11px] font-semibold text-azul-inst bg-[#E7EEF7] px-2.5 py-1.5 rounded-full">
           ＋ Agregar recordatorio
         </button>
       </div>
 
-      {recordatoriosActivos.length === 0 && (
-        <div className="text-center text-muted text-[12px] py-6">Sin recordatorios activos todavía.</div>
-      )}
+      {activos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios activos.</div>}
+      {activos.map(renderCard)}
 
-      {recordatoriosActivos.map((r) => (
-        <div key={`${r.rucId}-${r.id}`} className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5">
-          <div className="flex items-center justify-between gap-2">
-            <div className="min-w-0">
-              <div className="text-[12px] font-semibold text-ink truncate">
-                {r.nombre}{r.tributoAsociado ? ` · ${r.tributoAsociado}` : ''}
-              </div>
-              <div className="text-[10.5px] text-muted mt-0.5 truncate">{r.rucNombre} · {r.rucNumero}</div>
-              <div className="text-[10px] text-muted">{r.periodoMes} {r.periodoAnio} · {r.fecha} {r.hora} · S/ {r.monto}</div>
-            </div>
-            <button onClick={() => toggleRecordarTributo(r.rucId, r.id)} className="flex-shrink-0 text-[10px] font-semibold text-rojo-sunat bg-[#FCE9EB] px-2.5 py-1.5 rounded-full">
-              Desactivar
-            </button>
-          </div>
-        </div>
-      ))}
+      <h2 className="font-display font-bold text-[14px] text-ink mt-5 mb-2.5">Recordatorios desactivados</h2>
+      {inactivos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios desactivados.</div>}
+      {inactivos.map(renderCard)}
 
       <h2 className="font-display font-bold text-[14px] text-ink mt-5 mb-2.5">Envío de recordatorios</h2>
 
@@ -135,6 +166,17 @@ export default function AlertsScreen() {
                 <TributoForm tributos={tributos} tributosBase={tributosBase} onSubmit={handleAgregar} onCancel={() => setRucElegido(null)} />
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {editingItem && (
+        <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setEditingItem(null)}>
+          <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
+            <div className="font-display font-bold text-[14px] mb-1">{editingItem.rucNombre}</div>
+            <div className="font-mono text-[11px] text-muted mb-3">{editingItem.rucNumero}</div>
+            <TributoForm tributos={tributos} tributosBase={tributosBase} initial={editingItem} onSubmit={handleEditar} onCancel={() => setEditingItem(null)} />
           </div>
         </div>
       )}

@@ -165,12 +165,17 @@ export function AppProvider({ children }) {
     updateNotasForRuc(rucId, { tributos: actuales.filter((t) => t.id !== tributoId) })
   }, [updateNotasForRuc])
 
+  const editTributoDeRuc = useCallback((rucId, tributoId, data) => {
+    const actuales = allNotasRef.current[rucId]?.tributos || []
+    updateNotasForRuc(rucId, { tributos: actuales.map((t) => (t.id === tributoId ? { ...t, ...data } : t)) })
+  }, [updateNotasForRuc])
+
   const recordatoriosActivos = useMemo(() => {
     const lista = []
     Object.entries(allNotas).forEach(([rucId, nota]) => {
       const ruc = rucs.find((r) => r.id === rucId)
       ;(nota.tributos || []).forEach((t) => {
-        if (t.recordar) lista.push({ ...t, rucId, rucNombre: ruc?.razonSocial || rucId, rucNumero: ruc?.ruc || '' })
+        lista.push({ ...t, rucId, rucNombre: ruc?.razonSocial || rucId, rucNumero: ruc?.ruc || '' })
       })
     })
     lista.sort((a, b) => `${a.fecha}${a.hora}`.localeCompare(`${b.fecha}${b.hora}`))
@@ -191,7 +196,7 @@ export function AppProvider({ children }) {
     notifPermission, requestNotifPermission,
     tributos, tributosBase,
     getNotasForRuc, updateNotasForRuc, addTributoToRuc,
-    updateTributoDeRuc, toggleRecordarTributo, removeTributoDeRuc,
+    updateTributoDeRuc, toggleRecordarTributo, removeTributoDeRuc, editTributoDeRuc,
     flushNotasForRuc,
     recordatoriosActivos,
   }
