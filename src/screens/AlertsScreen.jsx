@@ -4,6 +4,7 @@ import { getVencimientos } from '../services/googleSheetsApi.js'
 import { proximoDiaHabil, quintoDiaHabil, toISO } from '../utils/diasHabiles.js'
 import { DIGITOS_RUC, TIPOS_VENCIMIENTO, obtenerDigitoRuc } from '../utils/digitoRuc.js'
 import { MESES } from '../utils/meses.js'
+import { diaMes } from '../utils/formatFecha.js'
 import TributoForm from '../components/TributoForm.jsx'
 
 const COLOR_ESTADO = {
@@ -22,13 +23,23 @@ function estadoDigito(fechaISO, hoyISO, proxISO) {
   return 'futuro'
 }
 
+function CeldaFecha({ fechaISO }) {
+  const { dia, mes } = diaMes(fechaISO)
+  return (
+    <div className="leading-tight">
+      <div className="font-display font-bold text-[13px]">{dia}</div>
+      <div className="text-[9px] opacity-90">{mes}</div>
+    </div>
+  )
+}
+
 export default function AlertsScreen() {
   const {
     pushLog, todosLosRecordatorios, toggleRecordarTributo, editTributoDeRuc, removeTributoDeRuc,
-    rucs, tributos, tributosBase, addTributoToRuc,
+    rucs, visibleRucs, groupFilter, setGroupFilter, availableGroups, tributos, tributosBase, addTributoToRuc,
   } = useApp()
 
-  // ── Recordatorios manuales (ya existía) ──
+  // ── Recordatorios manuales ──
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [rucElegido, setRucElegido] = useState(null)
@@ -42,7 +53,7 @@ export default function AlertsScreen() {
   )
 
   function abrirPicker() { setEditingItem(null); setRucElegido(null); setSearch(''); setPickerOpen(true) }
-  function abrirEdicion(item) { setPickerOpen(false); setEditingItem(item) }
+  function abrirEdicion(item) { setPickerOpen(false); setRecordModalTipo(null); setEditingItem(item) }
   function handleAgregar(data) {
     if (!rucElegido) return
     addTributoToRuc(rucElegido.id, data)
@@ -62,9 +73,9 @@ export default function AlertsScreen() {
     setEditingItem(null)
   }
 
-  // ── Cronograma real (SIRE / DJ Mensual / DJ Anual / AFPnet) ──
+  // ── Cronograma real ──
   const hoy = new Date()
-  const mesActualIdx = hoy.getMonth() // 0-indexado
+  const mesActualIdx = hoy.getMonth()
   const mesAnteriorIdx = mesActualIdx > 0 ? mesActualIdx - 1 : 11
   const [mesSel, setMesSel] = useState(MESES[mesAnteriorIdx])
   const [anioSel, setAnioSel] = useState(String(hoy.getFullYear()))
@@ -73,6 +84,7 @@ export default function AlertsScreen() {
   const [loadingVenc, setLoadingVenc] = useState(false)
   const [digitoModal, setDigitoModal] = useState(null)
   const [tablaModalOpen, setTablaModalOpen] = useState(false)
+  const [recordModalTipo, setRecordModalTipo] = useState(null) // 'hoy' | 'prox' | null
 
   useEffect(() => {
     let cancel = false
@@ -126,8 +138,12 @@ export default function AlertsScreen() {
     return { cuadroHoy: ch, cuadroProx: cp }
   }, [vencData, hoyISO, proxISO, fechaAfpISO])
 
-  const rucsPorDigito = digitoModal
-    ? rucs.filter((r) => obtenerDigitoRuc(r) === digitoModal)
+  const recordatoriosHoy = activos.filter((r) => r.fecha === hoyISO)
+  const recordatoriosProx = activos.filter((r) => r.fecha === proxISO)
+
+  const rucsBase = groupFilter === 'Todos' ? rucs : visibleRucs
+  const rucsPorDigito = digitoModal && digitoModal !== '__AFP__'
+    ? rucsBase.filter((r) => obtenerDigitoRuc(r) === digitoModal)
     : []
 
   function renderCard(r) {
@@ -160,7 +176,10 @@ export default function AlertsScreen() {
     <div className="relative flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
       <h2 className="font-display font-bold text-[14px] text-ink mb-2.5">Cronograma — {mesSel} {anioSel}</h2>
 
-      <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5">
+      <div
+        onClick={() => (cuadroHoy.length || recordatoriosHoy.length) && setRecordModalTipo('hoy')}
+        className={`bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5 ${(cuadroHoy.length || recordatoriosHoy.length) ? 'cursor-pointer' : ''}`}
+      >
         <div className="font-bold text-[12.5px] mb-1 text-rojo-sunat">🔴 Vence hoy — {hoy.toLocaleDateString('es-PE')}</div>
         {cuadroHoy.length === 0 ? (
           <div className="text-[10.5px] text-muted">Nada vence hoy en el periodo seleccionado.</div>
@@ -169,8 +188,15 @@ export default function AlertsScreen() {
             {cuadroHoy.map((c) => `${c.tipo}${c.digitos.length ? ` (dígitos ${c.digitos.join(', ')})` : ''}`).join(' · ')}
           </div>
         )}
+        {recordatoriosHoy.length > 0 && (
+          <div className="text-[10.5px] font-semibold text-rojo-sunat mt-1.5">＋ {recordatoriosHoy.length} recordatorio(s) creados para hoy — toca para ver</div>
+        )}
       </div>
-      <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5">
+
+      <div
+        onClick={() => (cuadroProx.length || recordatoriosProx.length) && setRecordModalTipo('prox')}
+        className={`bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5 ${(cuadroProx.length || recordatoriosProx.length) ? 'cursor-pointer' : ''}`}
+      >
         <div className="font-bold text-[12.5px] mb-1" style={{ color: '#D9A404' }}>🟡 Próximo día hábil — {proximoDiaHabil(hoy).toLocaleDateString('es-PE')}</div>
         {cuadroProx.length === 0 ? (
           <div className="text-[10.5px] text-muted">Nada por vencer en el periodo seleccionado.</div>
@@ -178,6 +204,9 @@ export default function AlertsScreen() {
           <div className="text-[10.5px] text-muted leading-relaxed">
             {cuadroProx.map((c) => `${c.tipo}${c.digitos.length ? ` (dígitos ${c.digitos.join(', ')})` : ''}`).join(' · ')}
           </div>
+        )}
+        {recordatoriosProx.length > 0 && (
+          <div className="text-[10.5px] font-semibold" style={{ color: '#8A6A00' }}>＋ {recordatoriosProx.length} recordatorio(s) creados — toca para ver</div>
         )}
       </div>
 
@@ -205,6 +234,21 @@ export default function AlertsScreen() {
           ))}
         </div>
 
+        <div className="mb-3">
+          <div className="text-[10.5px] font-semibold text-ink mb-1.5">Filtrar RUCs de cada dígito por grupo:</div>
+          <div className="flex flex-wrap gap-1.5">
+            {availableGroups.map((g) => (
+              <button
+                key={g}
+                onClick={() => setGroupFilter(g)}
+                className={`text-[10.5px] font-semibold px-3 py-1.5 rounded-full border ${groupFilter === g ? 'bg-azul-inst text-white border-azul-inst' : 'bg-white text-ink border-bordersoft'}`}
+              >
+                {g}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {loadingVenc ? (
           <div className="text-center text-muted text-[12px] py-4">Cargando cronograma…</div>
         ) : (
@@ -214,8 +258,8 @@ export default function AlertsScreen() {
               const estado = estadoDigito(fecha, hoyISO, proxISO)
               return (
                 <button key={d} onClick={() => setDigitoModal(d)} className={`rounded-xl px-2 py-2.5 text-center ${COLOR_ESTADO[estado]}`}>
-                  <div className="font-display font-bold text-[13px]">{d}</div>
-                  <div className="text-[9px] opacity-90">{fecha ? fecha.slice(5) : '—'}</div>
+                  <div className="text-[9px] opacity-90 mb-0.5">Dígito {d}</div>
+                  <CeldaFecha fechaISO={fecha} />
                 </button>
               )
             })}
@@ -243,29 +287,53 @@ export default function AlertsScreen() {
       {inactivos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios desactivados.</div>}
       {inactivos.map(renderCard)}
 
+      {/* ── Modal: recordatorios de hoy / próx. día hábil ── */}
+      {recordModalTipo && (
+        <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setRecordModalTipo(null)}>
+          <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
+            <div className="font-display font-bold text-[14px] mb-3">
+              Recordatorios — {recordModalTipo === 'hoy' ? 'vence hoy' : 'próximo día hábil'}
+            </div>
+            {(recordModalTipo === 'hoy' ? recordatoriosHoy : recordatoriosProx).map((r) => (
+              <div key={`${r.rucId}-${r.id}`} onClick={() => abrirEdicion(r)} className="py-2.5 border-b border-[#F4F6F9] cursor-pointer">
+                <div className="text-[12px] font-semibold">{r.nombre}{r.tributoAsociado ? ` · ${r.tributoAsociado}` : ''}</div>
+                <div className="text-[10.5px] text-muted">{r.rucNombre} · {r.rucNumero}</div>
+                <div className="text-[10px] text-muted">{r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
+              </div>
+            ))}
+            {(recordModalTipo === 'hoy' ? recordatoriosHoy : recordatoriosProx).length === 0 && (
+              <div className="text-center text-muted text-[12px] py-4">Sin recordatorios para esta fecha.</div>
+            )}
+            <button onClick={() => setRecordModalTipo(null)} className="w-full mt-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cerrar</button>
+          </div>
+        </div>
+      )}
+
       {/* ── Modal: RUCs de un dígito ── */}
       {digitoModal && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setDigitoModal(null)}>
           <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
-            <div className="font-display font-bold text-[14px] mb-3">
+            <div className="font-display font-bold text-[14px] mb-1">
               {digitoModal === '__AFP__' ? 'AFPnet — todos los RUCs' : `RUCs con dígito ${digitoModal}`}
             </div>
-            {(digitoModal === '__AFP__' ? rucs : rucsPorDigito).map((r) => (
+            <div className="text-[10.5px] text-muted mb-3">Grupo: {groupFilter}</div>
+            {(digitoModal === '__AFP__' ? rucsBase : rucsPorDigito).map((r) => (
               <div key={r.id} className="py-2.5 border-b border-[#F4F6F9]">
                 <div className="text-[12px] font-semibold">{r.razonSocial}</div>
                 <div className="font-mono text-[10.5px] text-muted">{r.ruc}</div>
               </div>
             ))}
             {digitoModal !== '__AFP__' && rucsPorDigito.length === 0 && (
-              <div className="text-center text-muted text-[12px] py-4">Ningún RUC con este dígito.</div>
+              <div className="text-center text-muted text-[12px] py-4">Ningún RUC con este dígito en el grupo seleccionado.</div>
             )}
             <button onClick={() => setDigitoModal(null)} className="w-full mt-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cerrar</button>
           </div>
         </div>
       )}
 
-      {/* ── Modal: tabla general (como la ventana flotante del launcher) ── */}
+      {/* ── Modal: tabla general ── */}
       {tablaModalOpen && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setTablaModalOpen(false)}>
           <div className="w-full bg-white rounded-t-2xl p-4 max-h-[85%] overflow-auto" onClick={(e) => e.stopPropagation()}>
@@ -287,7 +355,7 @@ export default function AlertsScreen() {
                       const estado = estadoDigito(fecha, hoyISO, proxISO)
                       return (
                         <td key={d} onClick={() => setDigitoModal(d)} className={`p-1 text-center cursor-pointer ${COLOR_ESTADO[estado]}`}>
-                          {fecha ? fecha.slice(5) : '—'}
+                          <CeldaFecha fechaISO={fecha} />
                         </td>
                       )
                     })}
