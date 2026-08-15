@@ -116,6 +116,14 @@ function listTributos_() {
 }
 
 // ── Lectura de cronogramas de vencimiento (sire / dj mensual / dj anual) ──
+function fechaCeldaToISO_(valor) {
+  if (!(valor instanceof Date)) return valor
+  const y = valor.getFullYear()
+  const m = String(valor.getMonth() + 1).padStart(2, '0')
+  const d = String(valor.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 function getVencimientos_(tipo, mes, anio) {
   const nombreHoja = HOJAS_VENC[tipo]
   if (!nombreHoja) throw new Error('Tipo de vencimiento no válido: ' + tipo)
@@ -123,7 +131,7 @@ function getVencimientos_(tipo, mes, anio) {
   if (!sheet) throw new Error('No se encontró la hoja "' + nombreHoja + '"')
 
   const values = sheet.getDataRange().getValues()
-  const headers = values[0] // A vacío/"MES", B..= dígitos
+  const headers = values[0]
   const mesBuscado = String(mes || '').toUpperCase()
 
   const fila = values.slice(1).find((r) => String(r[0]).trim().toUpperCase() === mesBuscado)
@@ -132,8 +140,7 @@ function getVencimientos_(tipo, mes, anio) {
   const resultado = {}
   for (let i = 1; i < headers.length; i++) {
     const digito = String(headers[i]).trim()
-    const valor = fila[i]
-    resultado[digito] = valor instanceof Date ? Utilities.formatDate(valor, 'GMT-5', 'yyyy-MM-dd') : valor
+    resultado[digito] = fechaCeldaToISO_(fila[i])
   }
   return resultado
 }

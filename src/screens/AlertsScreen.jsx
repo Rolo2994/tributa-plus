@@ -23,13 +23,14 @@ function estadoDigito(fechaISO, hoyISO, proxISO) {
   return 'futuro'
 }
 
-function CeldaFecha({ fechaISO }) {
+/** Botón de dígito — el dígito es lo grande/protagonista, la fecha va chica debajo. */
+function DigitButton({ digito, fechaISO, estado, onClick, compact }) {
   const { dia, mes } = diaMes(fechaISO)
   return (
-    <div className="leading-tight">
-      <div className="font-display font-bold text-[13px]">{dia}</div>
-      <div className="text-[9px] opacity-90">{mes}</div>
-    </div>
+    <button onClick={onClick} className={`rounded-xl text-center ${compact ? 'px-1.5 py-2' : 'px-2 py-2.5'} ${COLOR_ESTADO[estado]}`}>
+      <div className={`font-display font-extrabold ${compact ? 'text-[16px]' : 'text-[19px]'} leading-none`}>{digito}</div>
+      <div className="text-[9px] opacity-90 mt-1">{fechaISO ? `${dia} ${mes}` : '—'}</div>
+    </button>
   )
 }
 
@@ -39,7 +40,6 @@ export default function AlertsScreen() {
     rucs, visibleRucs, groupFilter, setGroupFilter, availableGroups, tributos, tributosBase, addTributoToRuc,
   } = useApp()
 
-  // ── Recordatorios manuales ──
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [rucElegido, setRucElegido] = useState(null)
@@ -73,7 +73,6 @@ export default function AlertsScreen() {
     setEditingItem(null)
   }
 
-  // ── Cronograma real ──
   const hoy = new Date()
   const mesActualIdx = hoy.getMonth()
   const mesAnteriorIdx = mesActualIdx > 0 ? mesActualIdx - 1 : 11
@@ -84,7 +83,8 @@ export default function AlertsScreen() {
   const [loadingVenc, setLoadingVenc] = useState(false)
   const [digitoModal, setDigitoModal] = useState(null)
   const [tablaModalOpen, setTablaModalOpen] = useState(false)
-  const [recordModalTipo, setRecordModalTipo] = useState(null) // 'hoy' | 'prox' | null
+  const [acordeonAbierto, setAcordeonAbierto] = useState('SIRE')
+  const [recordModalTipo, setRecordModalTipo] = useState(null)
 
   useEffect(() => {
     let cancel = false
@@ -213,7 +213,7 @@ export default function AlertsScreen() {
       <div className="flex items-center justify-between mt-4 mb-2">
         <h2 className="font-display font-bold text-[14px] text-ink">Vencimientos por dígito</h2>
         <button onClick={() => setTablaModalOpen(true)} className="text-[11px] font-semibold text-azul-inst bg-[#E7EEF7] px-2.5 py-1.5 rounded-full">
-          📅 Ver tabla completa
+          📅 Ver todo el cronograma
         </button>
       </div>
 
@@ -253,16 +253,9 @@ export default function AlertsScreen() {
           <div className="text-center text-muted text-[12px] py-4">Cargando cronograma…</div>
         ) : (
           <div className="grid grid-cols-4 gap-2">
-            {DIGITOS_RUC.map((d) => {
-              const fecha = vencData[tipoGrid]?.[d]
-              const estado = estadoDigito(fecha, hoyISO, proxISO)
-              return (
-                <button key={d} onClick={() => setDigitoModal(d)} className={`rounded-xl px-2 py-2.5 text-center ${COLOR_ESTADO[estado]}`}>
-                  <div className="text-[9px] opacity-90 mb-0.5">Dígito {d}</div>
-                  <CeldaFecha fechaISO={fecha} />
-                </button>
-              )
-            })}
+            {DIGITOS_RUC.map((d) => (
+              <DigitButton key={d} digito={d} fechaISO={vencData[tipoGrid]?.[d]} estado={estadoDigito(vencData[tipoGrid]?.[d], hoyISO, proxISO)} onClick={() => setDigitoModal(d)} />
+            ))}
           </div>
         )}
 
@@ -287,7 +280,6 @@ export default function AlertsScreen() {
       {inactivos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios desactivados.</div>}
       {inactivos.map(renderCard)}
 
-      {/* ── Modal: recordatorios de hoy / próx. día hábil ── */}
       {recordModalTipo && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setRecordModalTipo(null)}>
           <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -310,7 +302,6 @@ export default function AlertsScreen() {
         </div>
       )}
 
-      {/* ── Modal: RUCs de un dígito ── */}
       {digitoModal && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setDigitoModal(null)}>
           <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -333,42 +324,55 @@ export default function AlertsScreen() {
         </div>
       )}
 
-      {/* ── Modal: tabla general ── */}
+      {/* ── Ventana general: acordeón vertical (un bloque por tipo, cronograma completo) ── */}
       {tablaModalOpen && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setTablaModalOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl p-4 max-h-[85%] overflow-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full bg-white rounded-t-2xl p-4 max-h-[88%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-3" />
-            <div className="font-display font-bold text-[14px] mb-3">Cronograma — {mesSel} {anioSel}</div>
-            <table className="w-full text-[10px] border-collapse">
-              <thead>
-                <tr>
-                  <th className="text-left p-1 bg-azul-dark text-white sticky left-0">Tipo</th>
-                  {DIGITOS_RUC.map((d) => <th key={d} className="p-1 bg-azul-dark text-white">{d}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {TIPOS_VENCIMIENTO.map((tipo) => (
-                  <tr key={tipo}>
-                    <td className="p-1 font-semibold bg-[#F7F9FB] sticky left-0">{tipo}</td>
-                    {DIGITOS_RUC.map((d) => {
-                      const fecha = vencData[tipo]?.[d]
-                      const estado = estadoDigito(fecha, hoyISO, proxISO)
-                      return (
-                        <td key={d} onClick={() => setDigitoModal(d)} className={`p-1 text-center cursor-pointer ${COLOR_ESTADO[estado]}`}>
-                          <CeldaFecha fechaISO={fecha} />
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-                <tr>
-                  <td className="p-1 font-semibold bg-[#F7F9FB] sticky left-0">AFPnet</td>
-                  <td colSpan={DIGITOS_RUC.length} className={`p-1 text-center cursor-pointer ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`} onClick={() => setDigitoModal('__AFP__')}>
-                    {fechaAfp.toLocaleDateString('es-PE')} (todos los RUCs)
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <div className="font-display font-bold text-[14px] mb-1">Cronograma completo</div>
+            <div className="text-[11px] text-muted mb-3">{mesSel} {anioSel}</div>
+
+            {TIPOS_VENCIMIENTO.map((tipo) => {
+              const abierto = acordeonAbierto === tipo
+              return (
+                <div key={tipo} className="mb-2.5 border border-bordersoft rounded-2xl overflow-hidden">
+                  <button
+                    onClick={() => setAcordeonAbierto(abierto ? null : tipo)}
+                    className="w-full flex items-center justify-between px-4 py-3 bg-[#F7F9FB]"
+                  >
+                    <span className="font-semibold text-[12.5px] text-ink">{tipo}</span>
+                    <span className="text-muted text-[12px]">{abierto ? '▾' : '▸'}</span>
+                  </button>
+                  {abierto && (
+                    <div className="p-3 grid grid-cols-4 gap-2">
+                      {DIGITOS_RUC.map((d) => (
+                        <DigitButton
+                          key={d}
+                          digito={d}
+                          fechaISO={vencData[tipo]?.[d]}
+                          estado={estadoDigito(vencData[tipo]?.[d], hoyISO, proxISO)}
+                          onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }}
+                          compact
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            <div className="border border-bordersoft rounded-2xl overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-[#F7F9FB]">
+                <span className="font-semibold text-[12.5px] text-ink">AFPnet (todos los RUCs)</span>
+                <button
+                  onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}
+                  className={`text-[11px] font-bold px-3 py-1.5 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}
+                >
+                  {fechaAfp.toLocaleDateString('es-PE')}
+                </button>
+              </div>
+            </div>
+
             <button onClick={() => setTablaModalOpen(false)} className="w-full mt-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cerrar</button>
           </div>
         </div>
