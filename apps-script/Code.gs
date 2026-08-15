@@ -116,12 +116,27 @@ function listTributos_() {
 }
 
 // ── Lectura de cronogramas de vencimiento (sire / dj mensual / dj anual) ──
-function fechaCeldaToISO_(valor) {
-  if (!(valor instanceof Date)) return valor
-  const y = valor.getFullYear()
-  const m = String(valor.getMonth() + 1).padStart(2, '0')
-  const d = String(valor.getDate()).padStart(2, '0')
-  return `${y}-${m}-${d}`
+const MESES_ABBR_ = { ene:1, feb:2, mar:3, abr:4, may:5, jun:6, jul:7, ago:8, sep:9, oct:10, nov:11, dic:12 }
+
+/** Convierte el texto TAL COMO SE VE en la celda (ej "17-ago-26") a "yyyy-MM-dd", sin pasar por objetos Date. */
+function parseFechaDisplay_(texto) {
+  const s = String(texto || '').trim().toLowerCase()
+  const m1 = s.match(/^(\d{1,2})-([a-záéíóú]{3})-(\d{2,4})$/)
+  if (m1) {
+    const dia = m1[1].padStart(2, '0')
+    const mes = MESES_ABBR_[m1[2]]
+    if (!mes) return texto
+    let anio = m1[3]
+    if (anio.length === 2) anio = '20' + anio
+    return `${anio}-${String(mes).padStart(2, '0')}-${dia}`
+  }
+  const m2 = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/)
+  if (m2) {
+    let anio = m2[3]
+    if (anio.length === 2) anio = '20' + anio
+    return `${anio}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`
+  }
+  return texto // no es fecha (ej. "*TABA SIRE") — se devuelve tal cual
 }
 
 function getVencimientos_(tipo, mes, anio) {
@@ -130,7 +145,9 @@ function getVencimientos_(tipo, mes, anio) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja)
   if (!sheet) throw new Error('No se encontró la hoja "' + nombreHoja + '"')
 
-  const values = sheet.getDataRange().getValues()
+  // getDisplayValues() trae el texto EXACTO que se ve en pantalla —
+  // sin convertir nada a objetos de fecha, así no hay riesgo de desfase.
+  const values = sheet.getDataRange().getDisplayValues()
   const headers = values[0]
   const mesBuscado = String(mes || '').toUpperCase()
 
@@ -140,7 +157,7 @@ function getVencimientos_(tipo, mes, anio) {
   const resultado = {}
   for (let i = 1; i < headers.length; i++) {
     const digito = String(headers[i]).trim()
-    resultado[digito] = fechaCeldaToISO_(fila[i])
+    resultado[digito] = parseFechaDisplay_(fila[i])
   }
   return resultado
 }

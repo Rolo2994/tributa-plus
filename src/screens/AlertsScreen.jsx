@@ -83,7 +83,6 @@ export default function AlertsScreen() {
   const [loadingVenc, setLoadingVenc] = useState(false)
   const [digitoModal, setDigitoModal] = useState(null)
   const [tablaModalOpen, setTablaModalOpen] = useState(false)
-  const [acordeonAbierto, setAcordeonAbierto] = useState('SIRE')
   const [recordModalTipo, setRecordModalTipo] = useState(null)
 
   useEffect(() => {
@@ -324,7 +323,7 @@ export default function AlertsScreen() {
         </div>
       )}
 
-      {/* ── Ventana general: acordeón vertical (un bloque por tipo, cronograma completo) ── */}
+      {/* ── Ventana general: tabla transpuesta — dígitos en filas, tipos en columnas ── */}
       {tablaModalOpen && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setTablaModalOpen(false)}>
           <div className="w-full bg-white rounded-t-2xl p-4 max-h-[88%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -332,46 +331,45 @@ export default function AlertsScreen() {
             <div className="font-display font-bold text-[14px] mb-1">Cronograma completo</div>
             <div className="text-[11px] text-muted mb-3">{mesSel} {anioSel}</div>
 
-            {TIPOS_VENCIMIENTO.map((tipo) => {
-              const abierto = acordeonAbierto === tipo
-              return (
-                <div key={tipo} className="mb-2.5 border border-bordersoft rounded-2xl overflow-hidden">
-                  <button
-                    onClick={() => setAcordeonAbierto(abierto ? null : tipo)}
-                    className="w-full flex items-center justify-between px-4 py-3 bg-[#F7F9FB]"
-                  >
-                    <span className="font-semibold text-[12.5px] text-ink">{tipo}</span>
-                    <span className="text-muted text-[12px]">{abierto ? '▾' : '▸'}</span>
-                  </button>
-                  {abierto && (
-                    <div className="p-3 grid grid-cols-4 gap-2">
-                      {DIGITOS_RUC.map((d) => (
-                        <DigitButton
-                          key={d}
-                          digito={d}
-                          fechaISO={vencData[tipo]?.[d]}
-                          estado={estadoDigito(vencData[tipo]?.[d], hoyISO, proxISO)}
-                          onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }}
-                          compact
-                        />
-                      ))}
+            <table className="w-full text-[11px] border-collapse">
+              <thead>
+                <tr>
+                  <th className="text-left p-2 bg-azul-dark text-white rounded-l-lg">Dígito</th>
+                  {TIPOS_VENCIMIENTO.map((t) => (
+                    <th key={t} className="p-2 bg-azul-dark text-white text-center">{t === 'DJ Mensual' ? 'Mensual' : t === 'DJ Anual' ? 'Anual' : t}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {DIGITOS_RUC.map((d) => (
+                  <tr key={d} onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }} className="cursor-pointer border-b border-[#F1F4F8]">
+                    <td className="p-2 font-display font-bold text-[13px] text-ink">{d}</td>
+                    {TIPOS_VENCIMIENTO.map((t) => {
+                      const fechaISO = vencData[t]?.[d]
+                      const { dia, mes } = diaMes(fechaISO)
+                      const estado = estadoDigito(fechaISO, hoyISO, proxISO)
+                      return (
+                        <td key={t} className="p-1 text-center">
+                          <div className={`inline-block rounded-lg px-2 py-1 ${COLOR_ESTADO[estado]}`}>
+                            {fechaISO ? `${dia} ${mes}` : '—'}
+                          </div>
+                        </td>
+                      )
+                    })}
+                  </tr>
+                ))}
+                <tr onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }} className="cursor-pointer">
+                  <td colSpan={4} className="p-2">
+                    <div className="flex items-center justify-between bg-[#F7F9FB] rounded-lg px-3 py-2">
+                      <span className="font-semibold text-[11.5px]">AFPnet (todos los RUCs)</span>
+                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}>
+                        {fechaAfp.toLocaleDateString('es-PE')}
+                      </span>
                     </div>
-                  )}
-                </div>
-              )
-            })}
-
-            <div className="border border-bordersoft rounded-2xl overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-[#F7F9FB]">
-                <span className="font-semibold text-[12.5px] text-ink">AFPnet (todos los RUCs)</span>
-                <button
-                  onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}
-                  className={`text-[11px] font-bold px-3 py-1.5 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}
-                >
-                  {fechaAfp.toLocaleDateString('es-PE')}
-                </button>
-              </div>
-            </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
 
             <button onClick={() => setTablaModalOpen(false)} className="w-full mt-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cerrar</button>
           </div>
