@@ -16,9 +16,10 @@ import ValidezScreen from './screens/ValidezScreen.jsx'
 import DetraccScreen from './screens/DetraccScreen.jsx'
 import SireScreen from './screens/SireScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
+import InicioScreen from './screens/InicioScreen.jsx'
 
 const SCREENS = {
-  home: HomeScreen, alerts: AlertsScreen, modules: ModulesScreen,
+  home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, modules: ModulesScreen,
   buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen,
   sire: SireScreen, settings: SettingsScreen,
 }
