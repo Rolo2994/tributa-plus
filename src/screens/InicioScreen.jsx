@@ -9,6 +9,7 @@ import TributoForm from '../components/TributoForm.jsx'
 import GroupFilterBar from '../components/GroupFilterBar.jsx'
 import RucCard from '../components/RucCard.jsx'
 import { ocurreEnFecha } from '../utils/recurrencia.js'
+import CustomSelect from '../components/CustomSelect.jsx'
 
 const COLOR_ESTADO = {
   hoy: 'bg-rojo-sunat text-white',
@@ -186,12 +187,13 @@ export default function InicioScreen() {
 
       <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5">
         <div className="flex gap-2 mb-2.5">
-          <select value={mesSel} onChange={(e) => setMesSel(e.target.value)} className="flex-1 text-[12px] border border-bordersoft rounded-lg p-2 bg-white">
-            {MESES.map((m) => <option key={m}>{m}</option>)}
-          </select>
-          <select value={anioSel} onChange={(e) => setAnioSel(e.target.value)} className="w-20 text-[12px] border border-bordersoft rounded-lg p-2 bg-white">
-            {[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map((a) => <option key={a} value={String(a)}>{a}</option>)}
-          </select>
+          <CustomSelect value={mesSel} onChange={setMesSel} options={MESES} className="flex-1" />
+          <CustomSelect
+            value={anioSel}
+            onChange={setAnioSel}
+            options={[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map((a) => String(a))}
+            className="w-24"
+          />
         </div>
         <div className="flex bg-[#F1F4F8] rounded-[11px] p-[3px] mb-3">
           {TIPOS_VENCIMIENTO.map((t) => (
