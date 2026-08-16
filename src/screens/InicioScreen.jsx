@@ -6,6 +6,7 @@ import { DIGITOS_RUC, TIPOS_VENCIMIENTO, obtenerDigitoRuc } from '../utils/digit
 import { MESES } from '../utils/meses.js'
 import { diaMes } from '../utils/formatFecha.js'
 import TributoForm from '../components/TributoForm.jsx'
+import GroupFilterBar from '../components/GroupFilterBar.jsx'
 
 const COLOR_ESTADO = {
   hoy: 'bg-rojo-sunat text-white',
@@ -191,17 +192,7 @@ export default function InicioScreen() {
 
         <div className="mb-3">
           <div className="text-[10.5px] font-semibold text-ink mb-1.5">Filtrar RUCs de cada dígito por grupo:</div>
-          <div className="flex flex-wrap gap-1.5">
-            {availableGroups.map((g) => (
-              <button
-                key={g}
-                onClick={() => setGroupFilter(g)}
-                className={`text-[10.5px] font-semibold px-3 py-1.5 rounded-full border ${groupFilter === g ? 'bg-azul-inst text-white border-azul-inst' : 'bg-white text-ink border-bordersoft'}`}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
+          <GroupFilterBar />
         </div>
 
         {loadingVenc ? (

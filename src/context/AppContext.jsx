@@ -79,10 +79,30 @@ export function AppProvider({ children }) {
 
       if (rucsRes?.ok && Array.isArray(rucsRes.data)) {
         const normalizados = rucsRes.data.map(normalizeRuc)
-        setRucs(normalizados)
-        setActiveRucId((prev) => (prev && normalizados.some((r) => r.id === prev) ? prev : normalizados[0]?.id ?? null))
-        pushLog(`Google Sheets sincronizado — ${normalizados.length} RUC(s) leídos`)
+
+        // Protección: si el Excel tiene el mismo RUC repetido en varias filas,
+        // nos quedamos con la primera y avisamos — para que nunca rompa la
+        // pantalla, aunque lo ideal es corregirlo directamente en el Sheet.
+        const vistos = new Set()
+        const sinDuplicados = []
+        const rucsDuplicados = []
+        normalizados.forEach((r) => {
+          if (vistos.has(r.id)) {
+            rucsDuplicados.push(r.ruc)
+          } else {
+            vistos.add(r.id)
+            sinDuplicados.push(r)
+          }
+        })
+
+        setRucs(sinDuplicados)
+        setActiveRucId((prev) => (prev && sinDuplicados.some((r) => r.id === prev) ? prev : sinDuplicados[0]?.id ?? null))
+        pushLog(`Google Sheets sincronizado — ${sinDuplicados.length} RUC(s) leídos`)
+        if (rucsDuplicados.length) {
+          pushLog(`⚠ RUC(s) repetidos en el Excel (se usó solo la primera fila de cada uno): ${[...new Set(rucsDuplicados)].join(', ')}`)
+        }
       } else {
+
         throw new Error(rucsRes?.error || 'Respuesta inesperada del Apps Script (RUCs)')
       }
 
