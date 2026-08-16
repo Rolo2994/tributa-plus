@@ -258,18 +258,24 @@ export default function InicioScreen() {
       )}
 
       {tablaModalOpen && (
-        <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setTablaModalOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl p-4 max-h-[88%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-3" />
-            <div className="font-display font-bold text-[14px] mb-1">Cronograma completo</div>
-            <div className="text-[11px] text-muted mb-3">{mesSel} {anioSel}</div>
+        <div className="absolute inset-0 z-[60] bg-white flex flex-col">
+          <div className="flex-shrink-0 flex items-center justify-between px-4 py-3.5 border-b border-bordersoft">
+            <div>
+              <div className="font-display font-bold text-[16px] text-ink">Cronograma completo</div>
+              <div className="text-[12px] text-muted">{mesSel} {anioSel}</div>
+            </div>
+            <button onClick={() => setTablaModalOpen(false)} className="w-9 h-9 rounded-full bg-[#F1F4F8] text-ink flex items-center justify-center text-[16px]">
+              ✕
+            </button>
+          </div>
 
+          <div className="flex-1 overflow-y-auto px-4 py-4">
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr>
-                  <th className="w-[52px] text-center p-1.5 bg-azul-dark text-white rounded-l-lg text-[10px]">Dígito</th>
+                  <th className="w-[70px] text-center p-2 bg-azul-dark text-white rounded-l-lg text-[12px]">Dígito</th>
                   {TIPOS_VENCIMIENTO.map((t) => (
-                    <th key={t} className="p-1.5 bg-azul-dark text-white text-center text-[10px]">
+                    <th key={t} className="p-2 bg-azul-dark text-white text-center text-[12px]">
                       {t === 'DJ Mensual' ? 'Mensual' : t === 'DJ Anual' ? 'Anual' : t}
                     </th>
                   ))}
@@ -278,10 +284,10 @@ export default function InicioScreen() {
               <tbody>
                 {DIGITOS_RUC.map((d) => (
                   <tr key={d} className="border-b border-[#F1F4F8]">
-                    <td className="p-1 align-middle">
+                    <td className="p-1.5 align-middle">
                       <button
                         onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }}
-                        className="w-full h-9 rounded-lg bg-[#F1F4F8] text-ink font-display font-bold text-[13px] flex items-center justify-center"
+                        className="w-full h-14 rounded-xl bg-[#F1F4F8] text-ink font-display font-bold text-[20px] flex items-center justify-center"
                       >
                         {d}
                       </button>
@@ -291,15 +297,15 @@ export default function InicioScreen() {
                       const { dia, mes } = diaMes(fechaISO)
                       const estado = estadoDigito(fechaISO, hoyISO, proxISO)
                       return (
-                        <td key={t} className="p-1 align-middle">
-                          <div className={`w-full h-9 rounded-lg flex flex-col items-center justify-center leading-none ${COLOR_ESTADO[estado]}`}>
+                        <td key={t} className="p-1.5 align-middle">
+                          <div className={`w-full h-14 rounded-xl flex flex-col items-center justify-center leading-none ${COLOR_ESTADO[estado]}`}>
                             {fechaISO ? (
                               <>
-                                <span className="text-[11px] font-bold">{dia}</span>
-                                <span className="text-[8.5px] opacity-90">{mes}</span>
+                                <span className="text-[18px] font-bold">{dia}</span>
+                                <span className="text-[11px] opacity-90 mt-0.5">{mes}</span>
                               </>
                             ) : (
-                              <span className="text-[10px] opacity-80">—</span>
+                              <span className="text-[14px] opacity-80">—</span>
                             )}
                           </div>
                         </td>
@@ -308,13 +314,13 @@ export default function InicioScreen() {
                   </tr>
                 ))}
                 <tr>
-                  <td colSpan={4} className="p-1 pt-2">
+                  <td colSpan={4} className="p-1.5 pt-3">
                     <button
                       onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}
-                      className="w-full flex items-center justify-between bg-[#F7F9FB] rounded-lg px-3 py-2.5"
+                      className="w-full flex items-center justify-between bg-[#F7F9FB] rounded-xl px-4 py-3.5"
                     >
-                      <span className="font-semibold text-[11.5px] text-ink">AFPnet (todos los RUCs)</span>
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}>
+                      <span className="font-semibold text-[14px] text-ink">AFPnet (todos los RUCs)</span>
+                      <span className={`text-[13px] font-bold px-3 py-1.5 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}>
                         {fechaAfp.toLocaleDateString('es-PE')}
                       </span>
                     </button>
@@ -322,8 +328,6 @@ export default function InicioScreen() {
                 </tr>
               </tbody>
             </table>
-
-            <button onClick={() => setTablaModalOpen(false)} className="w-full mt-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cerrar</button>
           </div>
         </div>
       )}
