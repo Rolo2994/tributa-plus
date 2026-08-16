@@ -269,7 +269,8 @@ export default function InicioScreen() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          {/* Encabezado de columnas — fijo, no scrollea */}
+          <div className="flex-shrink-0 px-4 pt-3">
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr>
@@ -281,10 +282,16 @@ export default function InicioScreen() {
                   ))}
                 </tr>
               </thead>
+            </table>
+          </div>
+
+          {/* Filas de dígitos — esta es la única parte que scrollea */}
+          <div className="flex-1 overflow-y-auto px-4">
+            <table className="w-full border-collapse table-fixed">
               <tbody>
                 {DIGITOS_RUC.map((d) => (
                   <tr key={d} className="border-b border-[#F1F4F8]">
-                    <td className="p-1.5 align-middle">
+                    <td className="w-[70px] p-1.5 align-middle">
                       <button
                         onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }}
                         className="w-full h-14 rounded-xl bg-[#F1F4F8] text-ink font-display font-bold text-[20px] flex items-center justify-center"
@@ -313,21 +320,21 @@ export default function InicioScreen() {
                     })}
                   </tr>
                 ))}
-                <tr>
-                  <td colSpan={4} className="p-1.5 pt-3">
-                    <button
-                      onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}
-                      className="w-full flex items-center justify-between bg-[#F7F9FB] rounded-xl px-4 py-3.5"
-                    >
-                      <span className="font-semibold text-[14px] text-ink">AFPnet (todos los RUCs)</span>
-                      <span className={`text-[13px] font-bold px-3 py-1.5 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}>
-                        {fechaAfp.toLocaleDateString('es-PE')}
-                      </span>
-                    </button>
-                  </td>
-                </tr>
               </tbody>
             </table>
+          </div>
+
+          {/* AFPnet — fijo abajo, no scrollea */}
+          <div className="flex-shrink-0 px-4 py-3 border-t border-bordersoft">
+            <button
+              onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}
+              className="w-full flex items-center justify-between bg-[#F7F9FB] rounded-xl px-4 py-3.5"
+            >
+              <span className="font-semibold text-[14px] text-ink">AFPnet (todos los RUCs)</span>
+              <span className={`text-[13px] font-bold px-3 py-1.5 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}>
+                {fechaAfp.toLocaleDateString('es-PE')}
+              </span>
+            </button>
           </div>
         </div>
       )}
