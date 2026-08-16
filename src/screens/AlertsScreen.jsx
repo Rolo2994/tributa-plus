@@ -2,6 +2,8 @@ import React, { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import TributoForm from '../components/TributoForm.jsx'
 import SwipeableReminderCard from '../components/SwipeableReminderCard.jsx'
+import RucCard from '../components/RucCard.jsx'
+import Toast from '../components/Toast.jsx'
 
 export default function AlertsScreen() {
   const {
@@ -13,6 +15,9 @@ export default function AlertsScreen() {
   const [search, setSearch] = useState('')
   const [rucElegido, setRucElegido] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
+  const [toast, setToast] = useState('')
+  const [mostrarActivos, setMostrarActivos] = useState(true)
+  const [mostrarInactivos, setMostrarInactivos] = useState(false)
 
   const activos = todosLosRecordatorios.filter((r) => r.recordar)
   const inactivos = todosLosRecordatorios.filter((r) => !r.recordar)
@@ -27,23 +32,28 @@ export default function AlertsScreen() {
     if (!rucElegido) return
     addTributoToRuc(rucElegido.id, data)
     pushLog(`Recordatorio agregado para ${rucElegido.razonSocial}: ${data.nombre}`)
+    setToast(`✓ Recordatorio agregado: ${data.nombre}`)
     setPickerOpen(false)
   }
   function handleEditar(data) {
     if (!editingItem) return
     editTributoDeRuc(editingItem.rucId, editingItem.id, data)
     pushLog(`Recordatorio actualizado: ${data.nombre}`)
+    setToast('✓ Recordatorio actualizado')
     setEditingItem(null)
   }
   function confirmarEliminar(item) {
     if (!window.confirm(`¿Eliminar el recordatorio "${item.nombre}" de ${item.rucNombre}?`)) return
     removeTributoDeRuc(item.rucId, item.id)
     pushLog(`Recordatorio eliminado: ${item.nombre}`)
+    setToast('🗑 Recordatorio eliminado')
     setEditingItem(null)
   }
   function confirmarToggle(item) {
     toggleRecordarTributo(item.rucId, item.id)
-    pushLog(`${item.recordar ? 'Desactivado' : 'Reactivado'}: ${item.nombre}`)
+    const nuevoEstado = !item.recordar
+    pushLog(`${nuevoEstado ? 'Reactivado' : 'Desactivado'}: ${item.nombre}`)
+    setToast(nuevoEstado ? `✓ "${item.nombre}" activado` : `⏸ "${item.nombre}" desactivado`)
   }
 
   function renderCard(r) {
@@ -71,22 +81,41 @@ export default function AlertsScreen() {
 
   return (
     <div className="relative flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
+      <Toast message={toast} onDone={() => setToast('')} />
+
       <div className="bg-[#EAF1FA] text-azul-inst text-[10.5px] rounded-xl px-3 py-2.5 mb-3.5 leading-relaxed">
         💡 Desliza una tarjeta a los lados para eliminarla, o mantenla presionada para activar/desactivar el recordatorio.
       </div>
 
-      <div className="flex items-center justify-between mb-2.5">
-        <h2 className="font-display font-bold text-[14px] text-ink">Recordatorios activos</h2>
-        <button onClick={abrirPicker} className="text-[11px] font-semibold text-azul-inst bg-[#E7EEF7] px-2.5 py-1.5 rounded-full">
-          ＋ Agregar recordatorio
-        </button>
-      </div>
-      {activos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios activos.</div>}
-      {activos.map(renderCard)}
+      <button
+        onClick={abrirPicker}
+        className="w-full flex items-center justify-center gap-2 py-3.5 mb-4 rounded-2xl bg-azul-dark text-white font-semibold text-[13px] shadow-[0_6px_16px_-4px_rgba(7,40,68,0.5)]"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
+        Agregar recordatorio
+      </button>
 
-      <h2 className="font-display font-bold text-[14px] text-ink mt-5 mb-2.5">Recordatorios desactivados</h2>
-      {inactivos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios desactivados.</div>}
-      {inactivos.map(renderCard)}
+      <button onClick={() => setMostrarActivos((v) => !v)} className="w-full flex items-center justify-between mb-2.5">
+        <h2 className="font-display font-bold text-[14px] text-ink">Recordatorios activos <span className="text-muted font-normal text-[12px]">({activos.length})</span></h2>
+        <span className="text-muted text-[13px]">{mostrarActivos ? '▾' : '▸'}</span>
+      </button>
+      {mostrarActivos && (
+        <>
+          {activos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios activos.</div>}
+          {activos.map(renderCard)}
+        </>
+      )}
+
+      <button onClick={() => setMostrarInactivos((v) => !v)} className="w-full flex items-center justify-between mt-5 mb-2.5">
+        <h2 className="font-display font-bold text-[14px] text-ink">Recordatorios desactivados <span className="text-muted font-normal text-[12px]">({inactivos.length})</span></h2>
+        <span className="text-muted text-[13px]">{mostrarInactivos ? '▾' : '▸'}</span>
+      </button>
+      {mostrarInactivos && (
+        <>
+          {inactivos.length === 0 && <div className="text-center text-muted text-[12px] py-4">Sin recordatorios desactivados.</div>}
+          {inactivos.map(renderCard)}
+        </>
+      )}
 
       {pickerOpen && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setPickerOpen(false)}>
@@ -97,11 +126,11 @@ export default function AlertsScreen() {
                 <div className="font-display font-bold text-[14px] mb-3">Elige un RUC</div>
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar RUC o razón social…" className="w-full mb-3 rounded-[10px] border border-bordersoft px-3 py-2.5 text-[12px]" />
                 {rucsFiltrados.map((r) => (
-                  <div key={r.id} onClick={() => setRucElegido(r)} className="py-2.5 border-b border-[#F4F6F9] cursor-pointer">
-                    <div className="text-[12px] font-semibold">{r.razonSocial}</div>
-                    <div className="font-mono text-[10.5px] text-muted">{r.ruc}</div>
-                  </div>
+                  <RucCard key={r.id} ruc={r} onClick={() => setRucElegido(r)} />
                 ))}
+                {rucsFiltrados.length === 0 && (
+                  <div className="text-center text-muted text-[12px] py-6">Ningún RUC coincide con la búsqueda.</div>
+                )}
               </>
             ) : (
               <>

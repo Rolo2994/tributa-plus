@@ -73,7 +73,14 @@ export default function SwipeableReminderCard({ children, onDelete, onToggle }) 
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-        style={{ transform: `translateX(${translateX}px)`, transition: dragging ? 'none' : 'transform .25s ease', touchAction: 'pan-y' }}
+        style={{ 
+          transform: `translateX(${translateX}px)`,
+          transition: dragging ? 'none' : 'transform .25s ease',
+          touchAction: 'pan-y',
+          WebkitUserSelect: 'none',
+          WebkitTouchCallout: 'none',
+          userSelect: 'none',
+        }}
         className="relative"
       >
         {children}
