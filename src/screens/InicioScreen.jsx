@@ -264,41 +264,60 @@ export default function InicioScreen() {
             <div className="font-display font-bold text-[14px] mb-1">Cronograma completo</div>
             <div className="text-[11px] text-muted mb-3">{mesSel} {anioSel}</div>
 
-            <table className="w-full text-[11px] border-collapse">
+            <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr>
-                  <th className="text-left p-2 bg-azul-dark text-white rounded-l-lg">Dígito</th>
+                  <th className="w-[52px] text-center p-1.5 bg-azul-dark text-white rounded-l-lg text-[10px]">Dígito</th>
                   {TIPOS_VENCIMIENTO.map((t) => (
-                    <th key={t} className="p-2 bg-azul-dark text-white text-center">{t === 'DJ Mensual' ? 'Mensual' : t === 'DJ Anual' ? 'Anual' : t}</th>
+                    <th key={t} className="p-1.5 bg-azul-dark text-white text-center text-[10px]">
+                      {t === 'DJ Mensual' ? 'Mensual' : t === 'DJ Anual' ? 'Anual' : t}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {DIGITOS_RUC.map((d) => (
-                  <tr key={d} onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }} className="cursor-pointer border-b border-[#F1F4F8]">
-                    <td className="p-2 font-display font-bold text-[13px] text-ink">{d}</td>
+                  <tr key={d} className="border-b border-[#F1F4F8]">
+                    <td className="p-1 align-middle">
+                      <button
+                        onClick={() => { setTablaModalOpen(false); setDigitoModal(d) }}
+                        className="w-full h-9 rounded-lg bg-[#F1F4F8] text-ink font-display font-bold text-[13px] flex items-center justify-center"
+                      >
+                        {d}
+                      </button>
+                    </td>
                     {TIPOS_VENCIMIENTO.map((t) => {
                       const fechaISO = vencData[t]?.[d]
                       const { dia, mes } = diaMes(fechaISO)
                       const estado = estadoDigito(fechaISO, hoyISO, proxISO)
                       return (
-                        <td key={t} className="p-1 text-center">
-                          <div className={`inline-block rounded-lg px-2 py-1 ${COLOR_ESTADO[estado]}`}>
-                            {fechaISO ? `${dia} ${mes}` : '—'}
+                        <td key={t} className="p-1 align-middle">
+                          <div className={`w-full h-9 rounded-lg flex flex-col items-center justify-center leading-none ${COLOR_ESTADO[estado]}`}>
+                            {fechaISO ? (
+                              <>
+                                <span className="text-[11px] font-bold">{dia}</span>
+                                <span className="text-[8.5px] opacity-90">{mes}</span>
+                              </>
+                            ) : (
+                              <span className="text-[10px] opacity-80">—</span>
+                            )}
                           </div>
                         </td>
                       )
                     })}
                   </tr>
                 ))}
-                <tr onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }} className="cursor-pointer">
-                  <td colSpan={4} className="p-2">
-                    <div className="flex items-center justify-between bg-[#F7F9FB] rounded-lg px-3 py-2">
-                      <span className="font-semibold text-[11.5px]">AFPnet (todos los RUCs)</span>
+                <tr>
+                  <td colSpan={4} className="p-1 pt-2">
+                    <button
+                      onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}
+                      className="w-full flex items-center justify-between bg-[#F7F9FB] rounded-lg px-3 py-2.5"
+                    >
+                      <span className="font-semibold text-[11.5px] text-ink">AFPnet (todos los RUCs)</span>
                       <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${COLOR_ESTADO[estadoDigito(fechaAfpISO, hoyISO, proxISO)]}`}>
                         {fechaAfp.toLocaleDateString('es-PE')}
                       </span>
-                    </div>
+                    </button>
                   </td>
                 </tr>
               </tbody>
