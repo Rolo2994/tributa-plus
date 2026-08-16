@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { RECURRENCIAS } from '../utils/recurrencia.js'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const PERIODOS = [...MESES, 'Anual']
@@ -15,6 +16,7 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
     periodoMes: initial?.periodoMes || MESES[hoy.getMonth()],
     periodoAnio: initial?.periodoAnio || String(hoy.getFullYear()),
     tributoAsociado: initial?.tributoAsociado || (tributosBase[0]?.nombre || ''),
+    recurrencia: initial?.recurrencia || 'ninguna',
   })
 
   const seleccionado = tipo === 'tributo' ? tributos.find((t) => t.nombre === form.nombre) : null
@@ -94,6 +96,22 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
 
       <input type="date" value={form.fecha} onChange={(e) => set('fecha', e.target.value)} className="flex-1 min-w-[120px] text-[12px] border border-bordersoft rounded-lg p-2" />
       <input type="time" value={form.hora} onChange={(e) => set('hora', e.target.value)} className="flex-1 min-w-[100px] text-[12px] border border-bordersoft rounded-lg p-2" />
+
+      <div className="w-full">
+        <span className="block text-[10.5px] font-semibold text-ink mb-1.5">🔁 Repetir</span>
+        <select
+          value={form.recurrencia}
+          onChange={(e) => set('recurrencia', e.target.value)}
+          className="w-full text-[12px] border border-bordersoft rounded-lg p-2 bg-white"
+        >
+          {RECURRENCIAS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
+        </select>
+        {form.recurrencia !== 'ninguna' && form.fecha && (
+          <div className="text-[10px] text-muted mt-1">
+            Empieza el {form.fecha} y se repite desde ahí — como una alarma.
+          </div>
+        )}
+      </div>
 
       <div className="w-full flex gap-2 mt-1">
         {onCancel && <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cancelar</button>}

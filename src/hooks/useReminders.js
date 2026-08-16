@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { ocurreEnFecha } from '../utils/recurrencia.js'
 
 const STORAGE_KEY = 'tributaplus_notas'
 const NOTIFIED_KEY = 'tributaplus_recordatorios_notificados'
 const pad = (n) => String(n).padStart(2, '0')
 
-/**
- * Muestra una notificación de forma segura para cualquier navegador.
- * En Android (y la mayoría de navegadores móviles), `new Notification()`
- * directo está prohibido y lanza un error — hay que pasar por el
- * Service Worker (registration.showNotification). En computadoras,
- * si no hay Service Worker disponible, usamos el constructor directo
- * como respaldo. Todo envuelto en try/catch: si algo falla, no debe
- * romper el resto de la app.
- */
 async function mostrarNotificacionSegura(titulo, opciones) {
   try {
     if ('serviceWorker' in navigator) {
@@ -46,9 +38,7 @@ export function useReminders(rucs) {
 
   const requestPermission = useCallback(() => {
     if (typeof Notification === 'undefined') return
-    Notification.requestPermission()
-      .then(setPermission)
-      .catch(() => {})
+    Notification.requestPermission().then(setPermission).catch(() => {})
   }, [])
 
   const check = useCallback(async () => {
@@ -66,17 +56,20 @@ export function useReminders(rucs) {
     let cambios = false
     for (const [rucId, nota] of Object.entries(notas)) {
       for (const t of nota.tributos || []) {
-        if (!t.recordar || !t.fecha || !t.hora) continue
-        if (t.fecha !== hoyStr) continue
+        if (!t.recordar || !t.hora) continue
+        if (!ocurreEnFecha(t, hoyStr)) continue
+
         const [h, m] = t.hora.split(':').map(Number)
         const horaTributo = h * 60 + m
         if (horaActual >= horaTributo && horaActual - horaTributo <= 120) {
-          const key = `${rucId}-${t.id}-${t.fecha}-${t.hora}`
+          // La clave incluye la fecha DE HOY (no la fecha de inicio) para que
+          // un recordatorio recurrente vuelva a notificar en cada ocurrencia.
+          const key = `${rucId}-${t.id}-${hoyStr}-${t.hora}`
           if (!notificados.includes(key)) {
             const ruc = (rucsRef.current || []).find((r) => r.id === rucId)
             const nombre = ruc ? ruc.razonSocial : rucId
             const enviada = await mostrarNotificacionSegura(`Recordatorio — ${t.nombre}`, {
-              body: `${nombre} · S/ ${t.monto} · ${t.fecha} ${t.hora}`,
+              body: `${nombre} · S/ ${t.monto} · ${hoyStr} ${t.hora}`,
               icon: '/icon.svg',
               tag: key,
             })
@@ -88,7 +81,7 @@ export function useReminders(rucs) {
         }
       }
     }
-    if (cambios) localStorage.setItem(NOTIFIED_KEY, JSON.stringify(notificados.slice(-200)))
+    if (cambios) localStorage.setItem(NOTIFIED_KEY, JSON.stringify(notificados.slice(-300)))
   }, [])
 
   useEffect(() => {

@@ -8,6 +8,7 @@ import { diaMes } from '../utils/formatFecha.js'
 import TributoForm from '../components/TributoForm.jsx'
 import GroupFilterBar from '../components/GroupFilterBar.jsx'
 import RucCard from '../components/RucCard.jsx'
+import { ocurreEnFecha } from '../utils/recurrencia.js'
 
 const COLOR_ESTADO = {
   hoy: 'bg-rojo-sunat text-white',
@@ -108,8 +109,8 @@ export default function InicioScreen() {
   }, [vencData, hoyISO, proxISO, fechaAfpISO])
 
   const activos = todosLosRecordatorios.filter((r) => r.recordar)
-  const recordatoriosHoy = activos.filter((r) => r.fecha === hoyISO)
-  const recordatoriosProx = activos.filter((r) => r.fecha === proxISO)
+  const recordatoriosHoy = activos.filter((r) => ocurreEnFecha(r, hoyISO))
+  const recordatoriosProx = activos.filter((r) => ocurreEnFecha(r, proxISO))
 
   const rucsBase = groupFilter === 'Todos' ? rucs : visibleRucs
   const rucsPorDigito = digitoModal && digitoModal !== '__AFP__'

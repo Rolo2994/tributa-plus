@@ -4,6 +4,7 @@ import TributoForm from '../components/TributoForm.jsx'
 import SwipeableReminderCard from '../components/SwipeableReminderCard.jsx'
 import RucCard from '../components/RucCard.jsx'
 import Toast from '../components/Toast.jsx'
+import { labelRecurrencia } from '../utils/recurrencia.js'
 
 export default function AlertsScreen() {
   const {
@@ -69,6 +70,9 @@ export default function AlertsScreen() {
               </div>
               <div className="text-[10.5px] text-muted mt-0.5 truncate">{r.rucNombre} · {r.rucNumero}</div>
               <div className="text-[10px] text-muted">{r.periodoMes} {r.periodoAnio} · {r.fecha} {r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
+              {r.recurrencia && r.recurrencia !== 'ninguna' && (
+                <div className="text-[9.5px] text-azul-inst font-semibold mt-0.5">🔁 {labelRecurrencia(r.recurrencia)}</div>
+              )}
             </div>
             <span className={`flex-shrink-0 text-[9.5px] font-semibold px-2 py-1 rounded-full ${activo ? 'text-verde bg-[#EAF6EF]' : 'text-muted bg-[#F1F4F8]'}`}>
               {activo ? 'Activo' : 'Inactivo'}
