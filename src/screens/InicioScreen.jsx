@@ -7,6 +7,7 @@ import { MESES } from '../utils/meses.js'
 import { diaMes } from '../utils/formatFecha.js'
 import TributoForm from '../components/TributoForm.jsx'
 import GroupFilterBar from '../components/GroupFilterBar.jsx'
+import RucCard from '../components/RucCard.jsx'
 
 const COLOR_ESTADO = {
   hoy: 'bg-rojo-sunat text-white',
@@ -38,6 +39,7 @@ export default function InicioScreen() {
   const {
     pushLog, todosLosRecordatorios, toggleRecordarTributo, editTributoDeRuc, removeTributoDeRuc,
     rucs, visibleRucs, groupFilter, setGroupFilter, availableGroups, tributos, tributosBase,
+    vencimientoTipo, setVencimientoTipo, setNotesSheetRucId,
   } = useApp()
 
   const hoy = new Date()
@@ -140,8 +142,12 @@ export default function InicioScreen() {
         {cuadroHoy.length === 0 ? (
           <div className="text-[10.5px] text-muted">Nada vence hoy en el periodo seleccionado.</div>
         ) : (
-          <div className="text-[10.5px] text-muted leading-relaxed">
-            {cuadroHoy.map((c) => `${c.tipo}${c.digitos.length ? ` (dígitos ${c.digitos.join(', ')})` : ''}`).join(' · ')}
+          <div className="flex flex-wrap gap-1.5">
+            {cuadroHoy.map((c) => (
+              <span key={c.tipo} className="text-[10.5px] font-semibold bg-[#FCE9EB] text-rojo-sunat px-2.5 py-1 rounded-full">
+                {c.tipo}{c.digitos.length ? ` · ${c.digitos.join(', ')}` : ''}
+              </span>
+            ))}
           </div>
         )}
         {recordatoriosHoy.length > 0 && (
@@ -157,8 +163,12 @@ export default function InicioScreen() {
         {cuadroProx.length === 0 ? (
           <div className="text-[10.5px] text-muted">Nada por vencer en el periodo seleccionado.</div>
         ) : (
-          <div className="text-[10.5px] text-muted leading-relaxed">
-            {cuadroProx.map((c) => `${c.tipo}${c.digitos.length ? ` (dígitos ${c.digitos.join(', ')})` : ''}`).join(' · ')}
+          <div className="flex flex-wrap gap-1.5">
+            {cuadroProx.map((c) => (
+              <span key={c.tipo} className="text-[10.5px] font-semibold bg-[#FBF1DD] text-[#8A6A00] px-2.5 py-1 rounded-full">
+                {c.tipo}{c.digitos.length ? ` · ${c.digitos.join(', ')}` : ''}
+              </span>
+            ))}
           </div>
         )}
         {recordatoriosProx.length > 0 && (
@@ -221,10 +231,25 @@ export default function InicioScreen() {
               Recordatorios — {recordModalTipo === 'hoy' ? 'vence hoy' : 'próximo día hábil'}
             </div>
             {(recordModalTipo === 'hoy' ? recordatoriosHoy : recordatoriosProx).map((r) => (
-              <div key={`${r.rucId}-${r.id}`} onClick={() => abrirEdicion(r)} className="py-2.5 border-b border-[#F4F6F9] cursor-pointer">
-                <div className="text-[12px] font-semibold">{r.nombre}{r.tributoAsociado ? ` · ${r.tributoAsociado}` : ''}</div>
-                <div className="text-[10.5px] text-muted">{r.rucNombre} · {r.rucNumero}</div>
-                <div className="text-[10px] text-muted">{r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
+              <div
+                key={`${r.rucId}-${r.id}`}
+                onClick={() => abrirEdicion(r)}
+                className="flex items-center gap-3 bg-white rounded-2xl p-3.5 mb-2.5 border border-[#F0F3F7] shadow-card cursor-pointer active:scale-[0.98] transition-transform"
+              >
+                <div className={`w-9 h-9 rounded-[10px] flex-shrink-0 flex items-center justify-center font-display font-bold text-[11px] text-white ${recordModalTipo === 'hoy' ? 'bg-rojo-sunat' : 'bg-ambar'}`}>
+                  {r.nombre.slice(0, 3).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[12.5px] font-semibold text-ink truncate flex items-center gap-1.5">
+                    {r.esTarea && <span className="text-[9px] bg-[#EFE9FB] text-[#5B3FA8] font-bold px-1.5 py-[1px] rounded">TAREA</span>}
+                    {r.nombre}{r.tributoAsociado ? ` · ${r.tributoAsociado}` : ''}
+                  </div>
+                  <div className="text-[10.5px] text-muted mt-0.5 truncate">{r.rucNombre} · {r.rucNumero}</div>
+                  <div className="text-[10px] text-muted mt-0.5">{r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
+                </div>
+                <svg className="text-[#C3CEDA] flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
               </div>
             ))}
             {(recordModalTipo === 'hoy' ? recordatoriosHoy : recordatoriosProx).length === 0 && (
@@ -244,10 +269,7 @@ export default function InicioScreen() {
             </div>
             <div className="text-[10.5px] text-muted mb-3">Grupo: {groupFilter}</div>
             {(digitoModal === '__AFP__' ? rucsBase : rucsPorDigito).map((r) => (
-              <div key={r.id} className="py-2.5 border-b border-[#F4F6F9]">
-                <div className="text-[12px] font-semibold">{r.razonSocial}</div>
-                <div className="font-mono text-[10.5px] text-muted">{r.ruc}</div>
-              </div>
+              <RucCard key={r.id} ruc={r} onClick={() => { setDigitoModal(null); setNotesSheetRucId(r.id) }} />
             ))}
             {digitoModal !== '__AFP__' && rucsPorDigito.length === 0 && (
               <div className="text-center text-muted text-[12px] py-4">Ningún RUC con este dígito en el grupo seleccionado.</div>
