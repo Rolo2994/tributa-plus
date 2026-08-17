@@ -1,22 +1,35 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 const DIAS_CORTOS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
 const pad = (n) => String(n).padStart(2, '0')
-const SWIPE_THRESHOLD = 55
+const SWIPE_THRESHOLD = 45
+const TOTAL_CELLS = 42 // 6 filas x 7 columnas — SIEMPRE, así el alto nunca cambia entre meses
 
 function toISO(y, m, d) {
   return `${y}-${pad(m + 1)}-${pad(d)}`
 }
 
+/** Devuelve exactamente 42 celdas: días del mes anterior (atenuados) + del mes actual + del mes siguiente (atenuados). */
 function buildGrid(year, month) {
-  const first = new Date(year, month, 1)
-  const startOffset = first.getDay()
+  const firstDow = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const daysInPrevMonth = new Date(year, month, 0).getDate()
+
   const cells = []
-  for (let i = 0; i < startOffset; i++) cells.push(null)
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d)
+  for (let i = 0; i < firstDow; i++) {
+    const d = daysInPrevMonth - firstDow + 1 + i
+    cells.push({ day: d, type: 'prev' })
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, type: 'current' })
+  }
+  let nextDay = 1
+  while (cells.length < TOTAL_CELLS) {
+    cells.push({ day: nextDay, type: 'next' })
+    nextDay++
+  }
   return cells
 }
 
@@ -24,20 +37,18 @@ function decadeStart(year) {
   return Math.floor(year / 10) * 10 - 1
 }
 
-/**
- * Selector de fecha propio — encabezado clickeable para saltar directo
- * a elegir mes o año (como el datepicker de SUNAT), y deslizar los
- * días hacia los lados para cambiar de mes sin usar las flechas.
- */
 export default function CustomDatePicker({ value, onChange, className = '' }) {
   const [open, setOpen] = useState(false)
-  const [view, setView] = useState('days') // 'days' | 'months' | 'years'
+  const [view, setView] = useState('days')
   const hoy = new Date()
 
   const parsed = value ? new Date(value + 'T00:00:00') : hoy
   const [viewYear, setViewYear] = useState(parsed.getFullYear())
   const [viewMonth, setViewMonth] = useState(parsed.getMonth())
-  const [slideDir, setSlideDir] = useState(0)
+
+  // Animación de deslizamiento: 'enter-left' | 'enter-right' | null
+  const [animClass, setAnimClass] = useState(null)
+  const animTimer = useRef(null)
 
   const dragX = useRef(0)
   const dragging = useRef(false)
@@ -50,25 +61,47 @@ export default function CustomDatePicker({ value, onChange, className = '' }) {
     setOpen(true)
   }
 
+  function irAMes(year, month) {
+    setViewYear(year)
+    setViewMonth(month)
+  }
+
   function cambiarMes(delta) {
-    setSlideDir(delta)
+    clearTimeout(animTimer.current)
+    setAnimClass(delta > 0 ? 'enter-right' : 'enter-left')
     let m = viewMonth + delta
     let y = viewYear
     if (m < 0) { m = 11; y -= 1 }
     if (m > 11) { m = 0; y += 1 }
-    setViewMonth(m)
-    setViewYear(y)
-    setTimeout(() => setSlideDir(0), 180)
+    irAMes(y, m)
+    // Se limpia después de que termina la animación (220ms) — si se
+    // limpiara antes, cortaría el deslizamiento a la mitad.
+    animTimer.current = setTimeout(() => setAnimClass(null), 230)
   }
 
-  function elegirDia(d) {
-    onChange(toISO(viewYear, viewMonth, d))
+  useEffect(() => () => clearTimeout(animTimer.current), [])
+
+  function elegirDiaEn(year, month, d) {
+    onChange(toISO(year, month, d))
     setOpen(false)
   }
 
+  function onCellClick(cell) {
+    if (cell.type === 'prev') {
+      const m = viewMonth === 0 ? 11 : viewMonth - 1
+      const y = viewMonth === 0 ? viewYear - 1 : viewYear
+      elegirDiaEn(y, m, cell.day)
+    } else if (cell.type === 'next') {
+      const m = viewMonth === 11 ? 0 : viewMonth + 1
+      const y = viewMonth === 11 ? viewYear + 1 : viewYear
+      elegirDiaEn(y, m, cell.day)
+    } else {
+      elegirDiaEn(viewYear, viewMonth, cell.day)
+    }
+  }
+
   function irAHoy() {
-    setViewYear(hoy.getFullYear())
-    setViewMonth(hoy.getMonth())
+    irAMes(hoy.getFullYear(), hoy.getMonth())
     onChange(toISO(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()))
     setOpen(false)
   }
@@ -106,7 +139,7 @@ export default function CustomDatePicker({ value, onChange, className = '' }) {
 
       {open && (
         <div className="absolute inset-0 z-[90] bg-black/55 flex items-end" onClick={() => setOpen(false)}>
-          <div className="w-full bg-white rounded-t-[24px] p-5 shadow-[0_-8px_30px_rgba(0,0,0,0.2)]" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full bg-white rounded-t-[24px] p-5 shadow-[0_-8px_30px_rgba(0,0,0,0.2)] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
 
             <div className="flex items-center justify-between mb-4">
@@ -121,16 +154,16 @@ export default function CustomDatePicker({ value, onChange, className = '' }) {
               <div className="flex items-center gap-2">
                 {view === 'days' && (
                   <>
-                    <button type="button" onClick={() => setView('months')} className="font-display font-bold text-[16px] text-azul-inst px-2 py-1 rounded-lg bg-[#EAF1FA]">
+                    <button type="button" onClick={() => setView('months')} className="font-display font-bold text-[15px] text-azul-inst px-3 py-1.5 rounded-lg bg-[#EAF1FA]">
                       {MESES[viewMonth]}
                     </button>
-                    <button type="button" onClick={() => setView('years')} className="font-display font-bold text-[16px] text-ink px-2 py-1 rounded-lg">
+                    <button type="button" onClick={() => setView('years')} className="font-display font-bold text-[15px] text-azul-inst px-3 py-1.5 rounded-lg bg-[#EAF1FA]">
                       {viewYear}
                     </button>
                   </>
                 )}
-                {view === 'months' && <div className="font-display font-bold text-[16px] text-ink">{viewYear}</div>}
-                {view === 'years' && <div className="font-display font-bold text-[16px] text-ink">{dStart + 1}–{dStart + 10}</div>}
+                {view === 'months' && <div className="font-display font-bold text-[16px] text-ink px-3 py-1.5">{viewYear}</div>}
+                {view === 'years' && <div className="font-display font-bold text-[16px] text-ink px-3 py-1.5">{dStart + 1}–{dStart + 10}</div>}
               </div>
 
               <button
@@ -143,37 +176,38 @@ export default function CustomDatePicker({ value, onChange, className = '' }) {
             </div>
 
             {view === 'days' && (
-              <div
-                onPointerDown={onPointerDown}
-                onPointerUp={onPointerUp}
-                className="touch-pan-y"
-                style={{
-                  transform: `translateX(${slideDir * -14}px)`,
-                  opacity: slideDir ? 0.5 : 1,
-                  transition: 'transform .18s ease, opacity .18s ease',
-                }}
-              >
+              <div onPointerDown={onPointerDown} onPointerUp={onPointerUp} className="touch-pan-y">
                 <div className="grid grid-cols-7 gap-1 mb-1.5">
                   {DIAS_CORTOS.map((d, i) => (
                     <div key={i} className="text-center text-[10px] font-semibold text-muted py-1">{d}</div>
                   ))}
                 </div>
-                <div className="grid grid-cols-7 gap-1">
-                  {cells.map((d, i) => {
-                    if (d === null) return <div key={i} />
-                    const iso = toISO(viewYear, viewMonth, d)
-                    const selected = iso === value
-                    const esHoy = iso === hoyISO
+
+                <div
+                  key={`${viewYear}-${viewMonth}`}
+                  className={`grid grid-cols-7 grid-rows-6 gap-1 ${animClass === 'enter-right' ? 'dp-enter-right' : animClass === 'enter-left' ? 'dp-enter-left' : 'dp-enter-settled'}`}
+                >
+                  {cells.map((cell, i) => {
+                    const isCurrent = cell.type === 'current'
+                    const iso = isCurrent ? toISO(viewYear, viewMonth, cell.day) : null
+                    const selected = isCurrent && iso === value
+                    const esHoy = isCurrent && iso === hoyISO
                     return (
                       <button
                         key={i}
                         type="button"
-                        onClick={() => elegirDia(d)}
+                        onClick={() => onCellClick(cell)}
                         className={`aspect-square rounded-xl flex items-center justify-center text-[13.5px] font-semibold ${
-                          selected ? 'bg-azul-inst text-white shadow-[0_4px_10px_-2px_rgba(11,58,96,0.5)]' : esHoy ? 'bg-[#EAF1FA] text-azul-inst' : 'text-ink active:bg-[#F7F9FB]'
+                          selected
+                            ? 'bg-azul-inst text-white shadow-[0_4px_10px_-2px_rgba(11,58,96,0.5)]'
+                            : esHoy
+                            ? 'bg-[#EAF1FA] text-azul-inst'
+                            : isCurrent
+                            ? 'text-ink active:bg-[#F7F9FB]'
+                            : 'text-[#D5DEE8] active:bg-[#F7F9FB]'
                         }`}
                       >
-                        {d}
+                        {cell.day}
                       </button>
                     )
                   })}
@@ -229,6 +263,14 @@ export default function CustomDatePicker({ value, onChange, className = '' }) {
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes dpSlideFromRight { from { transform: translateX(28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes dpSlideFromLeft  { from { transform: translateX(-28px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .dp-enter-right  { animation: dpSlideFromRight .22s ease; }
+        .dp-enter-left   { animation: dpSlideFromLeft .22s ease; }
+        .dp-enter-settled{ animation: dpSlideFromRight .01s ease; }
+      `}</style>
     </>
   )
 }
