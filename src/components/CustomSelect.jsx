@@ -54,7 +54,6 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
                     <path d="M20 20l-4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                   <input
-                    autoFocus
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     placeholder="Buscar…"

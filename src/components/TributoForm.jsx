@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import CustomSelect from './CustomSelect.jsx'
 import CustomTimePicker from './CustomTimePicker.jsx'
 import { RECURRENCIAS, DIAS_SEMANA } from '../utils/recurrencia.js'
+import CustomDatePicker from './CustomDatePicker.jsx'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const PERIODOS = [...MESES, 'Anual']
@@ -112,7 +113,7 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
         />
       </div>
 
-      <input type="date" value={form.fecha} onChange={(e) => set('fecha', e.target.value)} className="flex-1 min-w-[120px] text-[12px] border border-bordersoft rounded-lg p-2" />
+      <CustomDatePicker value={form.fecha} onChange={(v) => set('fecha', v)} className="flex-1 min-w-[120px]" />
       <CustomTimePicker value={form.hora} onChange={(v) => set('hora', v)} className="flex-1 min-w-[100px]" />
 
       <div className="w-full">
