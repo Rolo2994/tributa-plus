@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import CustomSelect from './CustomSelect.jsx'
 import CustomTimePicker from './CustomTimePicker.jsx'
-import { RECURRENCIAS } from '../utils/recurrencia.js'
+import { RECURRENCIAS, DIAS_SEMANA } from '../utils/recurrencia.js'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const PERIODOS = [...MESES, 'Anual']
@@ -18,6 +18,7 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
     periodoAnio: initial?.periodoAnio || String(hoy.getFullYear()),
     tributoAsociado: initial?.tributoAsociado || (tributosBase[0]?.nombre || ''),
     recurrencia: initial?.recurrencia || 'ninguna',
+    diasSemana: initial?.diasSemana || [],
   })
 
   const seleccionado = tipo === 'tributo' ? tributos.find((t) => t.nombre === form.nombre) : null
@@ -31,14 +32,32 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
     if (nuevoTipo === 'tarea' && tributos.some((t) => t.nombre === form.nombre)) set('nombre', '')
   }
 
+  function cambiarRecurrencia(nueva) {
+    if (nueva === 'semanal' && form.diasSemana.length === 0 && form.fecha) {
+      const dow = new Date(form.fecha + 'T00:00:00').getDay()
+      setForm((p) => ({ ...p, recurrencia: nueva, diasSemana: [dow] }))
+    } else {
+      set('recurrencia', nueva)
+    }
+  }
+
+  function toggleDia(dow) {
+    setForm((p) => ({
+      ...p,
+      diasSemana: p.diasSemana.includes(dow) ? p.diasSemana.filter((d) => d !== dow) : [...p.diasSemana, dow],
+    }))
+  }
+
   function submit() {
     if (!form.fecha) return
     if (tipo === 'tarea' && !form.nombre.trim()) return
+    if (form.recurrencia === 'semanal' && form.diasSemana.length === 0) return
     onSubmit({
       ...form,
       monto: form.monto === '' ? 0 : Number(form.monto),
       esTarea: tipo === 'tarea',
       tributoAsociado: necesitaAsociado ? form.tributoAsociado : '',
+      diasSemana: form.recurrencia === 'semanal' ? form.diasSemana : [],
     })
   }
 
@@ -55,6 +74,7 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
 
       {tipo === 'tributo' ? (
         <CustomSelect
+          title="Elegir tributo"
           value={form.nombre}
           onChange={(v) => set('nombre', v)}
           options={tributos.map((t) => t.nombre)}
@@ -73,6 +93,7 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
 
       {necesitaAsociado && (
         <CustomSelect
+          title="Tributo asociado"
           value={form.tributoAsociado}
           onChange={(v) => set('tributoAsociado', v)}
           options={tributosBase.map((t) => ({ value: t.nombre, label: `Asociado a: ${t.nombre}` }))}
@@ -81,8 +102,9 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
       )}
 
       <div className="w-full flex gap-2">
-        <CustomSelect value={form.periodoMes} onChange={(v) => set('periodoMes', v)} options={PERIODOS} className="flex-1" />
+        <CustomSelect title="Mes del periodo" value={form.periodoMes} onChange={(v) => set('periodoMes', v)} options={PERIODOS} className="flex-1" />
         <CustomSelect
+          title="Año"
           value={form.periodoAnio}
           onChange={(v) => set('periodoAnio', v)}
           options={[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map((a) => String(a))}
@@ -96,12 +118,40 @@ export default function TributoForm({ tributos, tributosBase, onSubmit, onCancel
       <div className="w-full">
         <span className="block text-[10.5px] font-semibold text-ink mb-1.5">🔁 Repetir</span>
         <CustomSelect
+          title="Repetir recordatorio"
           value={form.recurrencia}
-          onChange={(v) => set('recurrencia', v)}
+          onChange={cambiarRecurrencia}
           options={RECURRENCIAS.map((r) => ({ value: r.id, label: r.label }))}
           className="w-full"
         />
-        {form.recurrencia !== 'ninguna' && form.fecha && (
+
+        {form.recurrencia === 'semanal' && (
+          <div className="mt-2.5">
+            <div className="text-[10px] text-muted mb-1.5">¿Qué días de la semana?</div>
+            <div className="flex gap-1.5">
+              {DIAS_SEMANA.map((d) => {
+                const activo = form.diasSemana.includes(d.dow)
+                return (
+                  <button
+                    key={d.dow}
+                    type="button"
+                    onClick={() => toggleDia(d.dow)}
+                    className={`w-9 h-9 rounded-full text-[12px] font-bold flex-shrink-0 ${
+                      activo ? 'bg-azul-inst text-white' : 'bg-white border border-bordersoft text-muted'
+                    }`}
+                  >
+                    {d.label}
+                  </button>
+                )
+              })}
+            </div>
+            {form.diasSemana.length === 0 && (
+              <div className="text-[10px] text-rojo-sunat mt-1.5">Elige al menos un día.</div>
+            )}
+          </div>
+        )}
+
+        {form.recurrencia !== 'ninguna' && form.recurrencia !== 'semanal' && form.fecha && (
           <div className="text-[10px] text-muted mt-1">Empieza el {form.fecha} y se repite desde ahí — como una alarma.</div>
         )}
       </div>

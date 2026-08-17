@@ -71,7 +71,7 @@ export default function AlertsScreen() {
               <div className="text-[10.5px] text-muted mt-0.5 truncate">{r.rucNombre} · {r.rucNumero}</div>
               <div className="text-[10px] text-muted">{r.periodoMes} {r.periodoAnio} · {r.fecha} {r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
               {r.recurrencia && r.recurrencia !== 'ninguna' && (
-                <div className="text-[9.5px] text-azul-inst font-semibold mt-0.5">🔁 {labelRecurrencia(r.recurrencia)}</div>
+                <div className="text-[9.5px] text-azul-inst font-semibold mt-0.5">🔁 {labelRecurrencia(r)}</div>
               )}
             </div>
             <span className={`flex-shrink-0 text-[9.5px] font-semibold px-2 py-1 rounded-full ${activo ? 'text-verde bg-[#EAF6EF]' : 'text-muted bg-[#F1F4F8]'}`}>
