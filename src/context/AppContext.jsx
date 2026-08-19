@@ -20,6 +20,7 @@ export function AppProvider({ children }) {
 
   const [currentScreen, setCurrentScreen] = useState('home')
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [accountPanelOpen, setAccountPanelOpen] = useState(false)
   const [notesSheetRucId, setNotesSheetRucId] = useState(null)
   const [contactPickerOpen, setContactPickerOpen] = useState(false)
   const [pendingSendCount, setPendingSendCount] = useState(0)
@@ -208,6 +209,7 @@ export function AppProvider({ children }) {
     vencimientoTipo, setVencimientoTipo,
     screen: currentScreen, currentScreen, goScreen,
     drawerOpen, setDrawerOpen,
+    accountPanelOpen, setAccountPanelOpen,
     notesSheetRucId, setNotesSheetRucId,
     contactPickerOpen, setContactPickerOpen,
     pendingSendCount, setPendingSendCount,

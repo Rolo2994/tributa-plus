@@ -27,7 +27,7 @@ function ClockDigital() {
 }
 
 export default function Header({ onLock }) {
-  const { setDrawerOpen, rucs } = useApp()
+  const { setAccountPanelOpen, rucs } = useApp()
   const vencidosHoy = 2 // valor de ejemplo — vendría del cronograma real
 
   return (
@@ -56,7 +56,7 @@ export default function Header({ onLock }) {
             </svg>
           </button>
           <button
-            onClick={() => setDrawerOpen(true)}
+            onClick={() => setAccountPanelOpen(true)}
             className="w-[38px] h-[38px] rounded-[10px] bg-white/10 flex items-center justify-center"
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none">

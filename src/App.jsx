@@ -17,6 +17,7 @@ import DetraccScreen from './screens/DetraccScreen.jsx'
 import SireScreen from './screens/SireScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 import InicioScreen from './screens/InicioScreen.jsx'
+import AccountActivityPanel from './components/AccountActivityPanel.jsx'
 
 const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, modules: ModulesScreen,
@@ -63,8 +64,9 @@ export default function App() {
         {!SUBSCREENS.has(currentScreen) && <BottomNav />}
 
         <ErrorBoundary>
-        <Drawer />
-        <NotesSheet />
+          <Drawer />
+          <NotesSheet />
+          <AccountActivityPanel />
         </ErrorBoundary>
       </div>
     </div>
