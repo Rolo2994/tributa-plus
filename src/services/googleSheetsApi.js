@@ -85,3 +85,8 @@ export function getTributos() {
 export function getAllNotas() {
   return callApi('listNotas')
 }
+
+/** Trae las filas con deuda pendiente de la hoja "Tax Status". */
+export function getTaxStatus() {
+  return callApi('listTaxStatus')
+}

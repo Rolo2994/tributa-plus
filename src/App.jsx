@@ -10,7 +10,6 @@ import ErrorBoundary from './components/ErrorBoundary.jsx'
 
 import HomeScreen from './screens/HomeScreen.jsx'
 import AlertsScreen from './screens/AlertsScreen.jsx'
-import ModulesScreen from './screens/ModulesScreen.jsx'
 import BuzonScreen from './screens/BuzonScreen.jsx'
 import ValidezScreen from './screens/ValidezScreen.jsx'
 import DetraccScreen from './screens/DetraccScreen.jsx'
@@ -18,9 +17,10 @@ import SireScreen from './screens/SireScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 import InicioScreen from './screens/InicioScreen.jsx'
 import AccountActivityPanel from './components/AccountActivityPanel.jsx'
+import DashboardScreen from './screens/DashboardScreen.jsx'
 
 const SCREENS = {
-  home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, modules: ModulesScreen,
+  home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, dashboard: DashboardScreen,
   buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen,
   sire: SireScreen, settings: SettingsScreen,
 }

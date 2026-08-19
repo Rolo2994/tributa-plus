@@ -49,7 +49,7 @@ export default function BuzonScreen() {
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1.5">
-        <button onClick={() => goScreen('modules')} className="w-8 h-8 rounded-[9px] bg-white border border-bordersoft flex items-center justify-center flex-shrink-0">
+        <button onClick={() => goScreen('dashboard')} className="w-8 h-8 rounded-[9px] bg-white border border-bordersoft flex items-center justify-center flex-shrink-0">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M15 6l-6 6 6 6" stroke="#0B3A60" strokeWidth="2.2" strokeLinecap="round" />
           </svg>

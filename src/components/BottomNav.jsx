@@ -25,13 +25,10 @@ const ITEMS = [
     ),
   },
   {
-    id: 'modules', label: 'Módulos',
+    id: 'dashboard', label: 'Dashboard',
     icon: (c) => (
       <>
-        <rect x="4" y="4" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.8" fill="none" />
-        <rect x="13" y="4" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.8" fill="none" />
-        <rect x="4" y="13" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.8" fill="none" />
-        <rect x="13" y="13" width="7" height="7" rx="1.5" stroke={c} strokeWidth="1.8" fill="none" />
+        <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke={c} strokeWidth="1.8" strokeLinecap="round" fill="none" />
       </>
     ),
   },

@@ -34,6 +34,7 @@ const HOJA_NOTAS = 'Notas'
 const HOJA_LOG = 'Log'
 const HOJAS_VENC = { SIRE: 'sire', 'DJ Mensual': 'dj mensual', 'DJ Anual': 'dj anual' }
 const HOJA_TRIBUTOS = 'Tributos'
+const HOJA_TAX_STATUS = 'Tax Status'
 
 // ── Punto de entrada para peticiones GET (lecturas) ──────────────
 function doGet(e) {
@@ -50,6 +51,8 @@ function doGet(e) {
       data = listTributos_()
     } else if (action === 'listNotas') {
       data = listNotas_()
+    } else if (action === 'listTaxStatus') {
+      data = listTaxStatus_()
     } else {
       throw new Error('Acción GET no reconocida: ' + action)
     }
@@ -108,6 +111,22 @@ function listTributos_() {
   const values = sheet.getDataRange().getValues()
   const headers = values[0]
   const rows = values.slice(1).filter((r) => r[0])
+  return rows.map((r) => {
+    const obj = {}
+    headers.forEach((h, i) => { obj[String(h).trim()] = r[i] })
+    return obj
+  })
+}
+
+function listTaxStatus_() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(HOJA_TAX_STATUS)
+  if (!sheet) throw new Error('No se encontró la hoja "' + HOJA_TAX_STATUS + '"')
+  const values = sheet.getDataRange().getValues()
+  const headers = values[0]
+  const idxSaldo = headers.indexOf('SALDO PENDIENTE')
+  // Solo se envían las filas con deuda real pendiente — reduce el peso
+  // de la respuesta y evita mandar filas ya pagadas o sin pendiente.
+  const rows = values.slice(1).filter((r) => r[0] && Number(r[idxSaldo] || 0) > 0)
   return rows.map((r) => {
     const obj = {}
     headers.forEach((h, i) => { obj[String(h).trim()] = r[i] })

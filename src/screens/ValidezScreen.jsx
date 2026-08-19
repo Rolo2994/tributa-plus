@@ -19,7 +19,7 @@ export default function ValidezScreen() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1.5">
-        <button onClick={() => goScreen('modules')} className="w-8 h-8 rounded-[9px] bg-white border border-bordersoft flex items-center justify-center">
+        <button onClick={() => goScreen('dashboard')} className="w-8 h-8 rounded-[9px] bg-white border border-bordersoft flex items-center justify-center">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <path d="M15 6l-6 6 6 6" stroke="#0B3A60" strokeWidth="2.2" strokeLinecap="round" />
           </svg>
