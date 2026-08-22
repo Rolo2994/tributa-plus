@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 
 const DOT_COLOR = { ok: 'bg-verde', prox: 'bg-ambar', vencido: 'bg-rojo-sunat' }
@@ -7,6 +7,11 @@ const DOT_COLOR = { ok: 'bg-verde', prox: 'bg-ambar', vencido: 'bg-rojo-sunat' }
 export default function Drawer() {
   const { rucs, drawerOpen, setDrawerOpen, activeRucId, setActiveRucId, pushLog } = useApp()
   const [search, setSearch] = useState('')
+
+  const searchRef = useRef(null)
+  function handleFocus() {
+    setTimeout(() => searchRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+  }
 
   const filtered = rucs.filter(
     (r) =>
@@ -36,8 +41,10 @@ export default function Drawer() {
         <div className="font-display font-bold text-[15px] text-white mb-1">RUCs disponibles</div>
         <div className="text-[11px] text-sky-200/70 mb-4">Toca un RUC para usarlo en Módulos</div>
         <input
+          ref={searchRef}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          onFocus={handleFocus}
           placeholder="Buscar RUC o razón social…"
           className="w-full mb-3.5 rounded-[10px] bg-white/10 border border-white/15 px-3 py-2.5 text-[12px] text-white placeholder:text-sky-300/60"
         />

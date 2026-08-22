@@ -1,16 +1,14 @@
 import React from 'react'
 import { useApp } from '../context/AppContext.jsx'
+import GroupFilterBar from './GroupFilterBar.jsx'
 
-/**
- * Panel del botón de 3 rayas — combina:
- *  (A) Centro de actividad: versión legible de la consola, para revisar
- *      qué pasó (sincronizaciones, recordatorios disparados, notas
- *      guardadas), no solo para depurar.
- *  (B) Cuenta/perfil: resumen rápido + accesos directos a Ajustes y
- *      bloqueo, como el menú de avatar de apps tipo Revolut/N26.
- */
+const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
+
 export default function AccountActivityPanel() {
-  const { accountPanelOpen, setAccountPanelOpen, rucs, todosLosRecordatorios, logs, goScreen } = useApp()
+  const {
+    accountPanelOpen, setAccountPanelOpen, rucs, todosLosRecordatorios, logs, goScreen,
+    vencimientoTipo, setVencimientoTipo,
+  } = useApp()
 
   const activos = todosLosRecordatorios.filter((r) => r.recordar)
 
@@ -38,7 +36,6 @@ export default function AccountActivityPanel() {
           accountPanelOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
-        {/* ── Cabecera de cuenta ── */}
         <div className="flex-shrink-0 bg-gradient-to-b from-azul-inst to-azul-dark px-5 pt-6 pb-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
@@ -65,7 +62,6 @@ export default function AccountActivityPanel() {
           </div>
         </div>
 
-        {/* ── Accesos rápidos ── */}
         <div className="flex-shrink-0 px-4 py-3 flex gap-2 border-b border-bordersoft">
           <button onClick={() => irA('settings')} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-[#F1F4F8] text-ink text-[11.5px] font-semibold">
             ⚙ Ajustes
@@ -75,7 +71,24 @@ export default function AccountActivityPanel() {
           </button>
         </div>
 
-        {/* ── Centro de actividad ── */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-bordersoft">
+          <div className="text-[10.5px] font-bold text-muted uppercase tracking-wide mb-1.5">Grupo</div>
+          <GroupFilterBar />
+
+          <div className="text-[10.5px] font-bold text-muted uppercase tracking-wide mt-3 mb-1.5">Tipo de vencimiento</div>
+          <div className="flex bg-[#F1F4F8] rounded-[11px] p-[3px]">
+            {TIPOS_VENCIMIENTO.map((t) => (
+              <button
+                key={t}
+                onClick={() => setVencimientoTipo(t)}
+                className={`flex-1 py-2 text-[11px] font-semibold rounded-[9px] ${vencimientoTipo === t ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto px-4 py-3">
           <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-2">Actividad reciente</div>
           {logsRecientes.length === 0 && (

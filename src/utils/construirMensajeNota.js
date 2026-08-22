@@ -1,15 +1,20 @@
-export function construirMensajeNota(ruc, nota) {
+cat > /home/claude/tributa-plus/src/utils/construirMensajeDashboard.js << 'EOF'
+import { formatMoney } from './formatMoney.js'
+
+export function construirMensajeDashboard(empresaLabel, kpis, rows) {
   const lineas = []
-  lineas.push(`*Recordatorio tributario — ${ruc.razonSocial}*`)
-  lineas.push(`RUC: ${ruc.ruc}`)
+  lineas.push(`*Estado de cuenta tributaria — ${empresaLabel}*`)
   lineas.push('')
-  ;(nota.tributos || []).forEach((t) => {
-    const periodo = t.periodoMes && t.periodoAnio ? ` (periodo ${t.periodoMes} ${t.periodoAnio})` : ''
-    lineas.push(`• ${t.nombre}${t.tributoAsociado ? ` · ${t.tributoAsociado}` : ''}${periodo}: S/ ${t.monto} (vence ${t.fecha})`)
+  lineas.push(`Deuda total actualizada: S/ ${formatMoney(kpis.deudaTotalActualizada)}`)
+  lineas.push(`Interés generado: S/ ${formatMoney(kpis.totalInteres)}`)
+  lineas.push(`Tributos vencidos: ${kpis.tributosVencidos}`)
+  if (kpis.diasMasAntiguo > 0) lineas.push(`Deuda más antigua: ${kpis.diasMasAntiguo} días de atraso`)
+  lineas.push('')
+  lineas.push('Detalle:')
+  rows.forEach((r) => {
+    lineas.push(`• ${r.tributo} (${r.mes}/${r.anio}) — S/ ${formatMoney(r.montoActualizado)}${r.diasAtraso > 0 ? ` · ${r.diasAtraso}d atraso` : ''}`)
   })
-  if (nota.observaciones) {
-    lineas.push('')
-    lineas.push(nota.observaciones)
-  }
   return lineas.join('\n')
 }
+EOF
+echo OK

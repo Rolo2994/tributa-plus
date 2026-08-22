@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import TributoForm from '../components/TributoForm.jsx'
 import SwipeableReminderCard from '../components/SwipeableReminderCard.jsx'
@@ -14,6 +14,10 @@ export default function AlertsScreen() {
 
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const searchRef = useRef(null)
+  function handleFocusSearch() {
+    setTimeout(() => searchRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+  }
   const [rucElegido, setRucElegido] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
   const [toast, setToast] = useState('')
@@ -128,7 +132,7 @@ export default function AlertsScreen() {
             {!rucElegido ? (
               <>
                 <div className="font-display font-bold text-[14px] mb-3">Elige un RUC</div>
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar RUC o razón social…" className="w-full mb-3 rounded-[10px] border border-bordersoft px-3 py-2.5 text-[12px]" />
+                <input ref={searchRef} value={search} onChange={(e) => setSearch(e.target.value)} onFocus={handleFocusSearch} placeholder="Buscar RUC o razón social…" className="w-full mb-3 rounded-[10px] border border-bordersoft px-3 py-2.5 text-[12px]" />
                 {rucsFiltrados.map((r) => (
                   <RucCard key={r.id} ruc={r} onClick={() => setRucElegido(r)} />
                 ))}

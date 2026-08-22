@@ -3,7 +3,6 @@ import { useApp } from './context/AppContext.jsx'
 import Header from './components/Header.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import Drawer from './components/Drawer.jsx'
-import ConsoleLog from './components/ConsoleLog.jsx'
 import LockScreen from './components/LockScreen.jsx'
 import NotesSheet from './components/NotesSheet.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -60,7 +59,6 @@ export default function App() {
           </ErrorBoundary>
         </div>
 
-        <ConsoleLog />
         {!SUBSCREENS.has(currentScreen) && <BottomNav />}
 
         <ErrorBoundary>

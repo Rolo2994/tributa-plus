@@ -1,13 +1,9 @@
-import React, { useMemo, useState } from 'react'
+import React, { useMemo, useRef, useState } from 'react'
 
-/**
- * Selector propio (reemplaza el <select> nativo, que Android pinta con
- * su propio estilo oscuro sin relación con el diseño de la app).
- * Incluye buscador automático cuando la lista es larga.
- */
 export default function CustomSelect({ value, onChange, options, placeholder = 'Elegir…', title = 'Elegir opción', className = '' }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const inputRef = useRef(null)
   const opts = useMemo(() => options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o)), [options])
   const current = opts.find((o) => o.value === value)
 
@@ -19,6 +15,16 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
   function abrir() {
     setSearch('')
     setOpen(true)
+  }
+
+  // Cuando el teclado aparece, el navegador achica la ventana visible —
+  // esto empuja el campo hacia abajo y puede quedar tapado. Forzamos que
+  // vuelva a la vista apenas se abre el teclado (se espera un poco a que
+  // termine la animación del teclado antes de desplazar).
+  function handleFocus() {
+    setTimeout(() => {
+      inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    }, 300)
   }
 
   return (
@@ -54,8 +60,10 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
                     <path d="M20 20l-4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                   <input
+                    ref={inputRef}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
+                    onFocus={handleFocus}
                     placeholder="Buscar…"
                     className="w-full text-[13px] border border-bordersoft rounded-xl pl-9 pr-3 py-2.5 bg-[#F7F9FB]"
                   />
