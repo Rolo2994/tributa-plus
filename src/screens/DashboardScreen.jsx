@@ -403,7 +403,7 @@ export default function DashboardScreen() {
       )}
 
       {/* ── Tarjeta invisible fuera de pantalla, usada solo para generar la imagen ── */}
-      <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}>
+      <div style={{ position: 'fixed', top: 0, left: 0, width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
         <DashboardShareCard ref={shareCardRef} empresaLabel={empresaLabel} kpis={kpis} rows={rowsFiltradas} fecha={hoy.toLocaleDateString('es-PE')} treemapData={treemapData} />
       </div>
     </div>
