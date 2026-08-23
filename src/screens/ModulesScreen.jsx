@@ -5,7 +5,7 @@ import { PAGINAS_LOGIN, PAGINAS_DIRECTAS } from '../data/mockData.js'
 const DOT = { ok: 'bg-verde', prox: 'bg-ambar', vencido: 'bg-rojo-sunat' }
 
 const ACCIONES = [
-  { id: 'buzon', title: 'Buzón PDF', desc: 'Ver notificaciones y reenviar por WhatsApp' },
+  { id: 'buzon-ejecutar', title: 'Buzón PDF', desc: 'Ver notificaciones y reenviar por WhatsApp' },
   { id: 'validez', title: 'Validez CP', desc: 'Validar comprobantes de pago vía API' },
   { id: 'detracc', title: 'Detracciones', desc: 'Consulta de pago SPOT' },
   { id: 'sire', title: 'SIRE', desc: 'Ver / descargar registros compras y ventas' },

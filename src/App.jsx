@@ -9,6 +9,7 @@ import NotesSheet from './components/NotesSheet.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import AccountActivityPanel from './components/AccountActivityPanel.jsx'
 import { useReminders } from './hooks/useReminders.js'
+import BuzonEjecutarScreen from './screens/BuzonEjecutarScreen.jsx'
 
 import HomeScreen from './screens/HomeScreen.jsx'
 import AlertsScreen from './screens/AlertsScreen.jsx'
@@ -23,9 +24,9 @@ import SettingsScreen from './screens/SettingsScreen.jsx'
 const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, dashboard: DashboardScreen,
   buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen,
-  sire: SireScreen, settings: SettingsScreen,
+  sire: SireScreen, settings: SettingsScreen,'buzon-ejecutar': BuzonEjecutarScreen,
 }
-const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire'])
+const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'buzon-ejecutar'])
 
 export default function App() {
   const { currentScreen, sincronizarDatos, syncing, syncError, rucs } = useApp()
