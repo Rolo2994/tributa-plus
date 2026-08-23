@@ -15,3 +15,15 @@ body { font-family: 'Inter', sans-serif; }
 /* Respeta la muesca/cámara y la barra de gestos del celular */
 .app-safe-top { padding-top: max(env(safe-area-inset-top), 0px); }
 .app-safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
+/* La app se comporta como una app real, no como una página web que se
+   puede alejar/acercar con los dedos — evita el pellizco de zoom y
+   cualquier "rebote" de scroll fuera de los paneles internos. */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+#root {
+  height: 100%;
+}
