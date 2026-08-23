@@ -126,8 +126,8 @@ export default function AlertsScreen() {
       )}
 
       {pickerOpen && (
-        <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setPickerOpen(false)}>
-          <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="absolute inset-0 z-[60] bg-black/50 flex items-start" onClick={() => setPickerOpen(false)}>
+          <div className="w-full bg-white rounded-b-2xl p-5 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
             {!rucElegido ? (
               <>

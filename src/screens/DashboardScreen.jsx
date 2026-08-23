@@ -238,7 +238,7 @@ export default function DashboardScreen() {
   }
 
   return (
-    <div className="relative flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
+    <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-[130px]">
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-display font-bold text-[16px] text-ink">Dashboard tributario</h2>
         <button onClick={() => setCompartirOpen(true)} className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-azul-dark px-3 py-1.5 rounded-full">

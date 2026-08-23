@@ -1,11 +1,8 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { useKeyboardInset } from '../hooks/useKeyboardInset.js'
+import React, { useMemo, useState } from 'react'
 
 export default function CustomSelect({ value, onChange, options, placeholder = 'Elegir…', title = 'Elegir opción', className = '' }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const keyboardInset = useKeyboardInset()
-  const inputRef = useRef(null)
   const opts = useMemo(() => options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o)), [options])
   const current = opts.find((o) => o.value === value)
 
@@ -17,16 +14,6 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
   function abrir() {
     setSearch('')
     setOpen(true)
-  }
-
-  // Cuando el teclado aparece, el navegador achica la ventana visible —
-  // esto empuja el campo hacia abajo y puede quedar tapado. Forzamos que
-  // vuelva a la vista apenas se abre el teclado (se espera un poco a que
-  // termine la animación del teclado antes de desplazar).
-  function handleFocus() {
-    setTimeout(() => {
-      inputRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' })
-    }, 300)
   }
 
   return (
@@ -43,15 +30,11 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
       </button>
 
       {open && (
-        <div className="absolute inset-0 z-[90] bg-black/55 flex items-end" onClick={() => setOpen(false)}>
-          <div
-            className="w-full bg-white rounded-t-[24px] max-h-[75vh] flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.2)]"
-            style={{ marginBottom: keyboardInset, transition: 'margin-bottom .15s ease' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mt-2.5 flex-shrink-0" />
-
-            <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">
+        <div className="absolute inset-0 z-[90] bg-black/55 flex items-start" onClick={() => setOpen(false)}>
+          {/* Anclado ARRIBA (no abajo): así el teclado, que solo ocupa
+              espacio desde el borde inferior, nunca lo tapa. */}
+          <div className="w-full bg-white rounded-b-[24px] max-h-[80vh] flex flex-col shadow-[0_8px_30px_rgba(0,0,0,0.2)]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 pt-5 pb-2 flex-shrink-0">
               <div className="font-display font-bold text-[15px] text-ink">{title}</div>
               <button onClick={() => setOpen(false)} className="w-8 h-8 rounded-full bg-[#F1F4F8] text-muted flex items-center justify-center text-[14px]">
                 ✕
@@ -66,10 +49,8 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
                     <path d="M20 20l-4.5-4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
                   <input
-                    ref={inputRef}
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    onFocus={handleFocus}
                     placeholder="Buscar…"
                     className="w-full text-[13px] border border-bordersoft rounded-xl pl-9 pr-3 py-2.5 bg-[#F7F9FB]"
                   />
