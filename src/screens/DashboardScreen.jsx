@@ -16,7 +16,7 @@ import { PAGINAS_LOGIN, PAGINAS_DIRECTAS } from '../data/mockData.js'
 const MES_ABBR = MESES.map((m) => m.slice(0, 3))
 
 const ACCIONES = [
-  { id: 'buzon', label: 'Buzón PDF', icon: '📥' },
+  { id: 'buzon-ejecutar', label: 'Buzón PDF', icon: '📥' },
   { id: 'validez', label: 'Validez CP', icon: '🔎' },
   { id: 'detracc', label: 'Detracciones', icon: '📊' },
   { id: 'sire', label: 'SIRE', icon: '⬇' },
