@@ -125,18 +125,30 @@ export default function DashboardScreen() {
     })
   }, [taxRows, vencCache, rucs, hoyISO])
 
+  // Solo cuenta como "disponibles" los RUCs que además pasan el filtro de
+  // Grupo (el mismo que usas en RUCs/Inicio, ahora también aquí).
+  const rucsPermitidos = useMemo(() => {
+    if (groupFilter === 'Todos') return null // null = sin restricción
+    return new Set(visibleRucs.map((r) => r.ruc))
+  }, [visibleRucs, groupFilter])
+
+  const rowsCalculadasFiltradasPorGrupo = useMemo(() => {
+    if (!rucsPermitidos) return rowsCalculadas
+    return rowsCalculadas.filter((r) => rucsPermitidos.has(r.ruc))
+  }, [rowsCalculadas, rucsPermitidos])
+
   const empresas = useMemo(() => {
     const map = new Map()
-    rowsCalculadas.forEach((r) => {
+    rowsCalculadasFiltradasPorGrupo.forEach((r) => {
       if (!map.has(r.ruc)) map.set(r.ruc, r.razonSocial)
     })
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [rowsCalculadas])
+  }, [rowsCalculadasFiltradasPorGrupo])
 
   const rowsFiltradas = useMemo(() => {
-    if (empresaFiltro === 'Todas') return rowsCalculadas
-    return rowsCalculadas.filter((r) => r.ruc === empresaFiltro)
-  }, [rowsCalculadas, empresaFiltro])
+    if (empresaFiltro === 'Todas') return rowsCalculadasFiltradasPorGrupo
+    return rowsCalculadasFiltradasPorGrupo.filter((r) => r.ruc === empresaFiltro)
+  }, [rowsCalculadasFiltradasPorGrupo, empresaFiltro])
 
   const kpis = useMemo(() => {
     const totalInteres = rowsFiltradas.reduce((s, r) => s + r.interes, 0)
@@ -392,7 +404,7 @@ export default function DashboardScreen() {
 
       {/* ── Tarjeta invisible fuera de pantalla, usada solo para generar la imagen ── */}
       <div style={{ position: 'fixed', left: -9999, top: 0, pointerEvents: 'none' }}>
-        <DashboardShareCard ref={shareCardRef} empresaLabel={empresaLabel} kpis={kpis} rows={rowsFiltradas} fecha={hoy.toLocaleDateString('es-PE')} />
+        <DashboardShareCard ref={shareCardRef} empresaLabel={empresaLabel} kpis={kpis} rows={rowsFiltradas} fecha={hoy.toLocaleDateString('es-PE')} treemapData={treemapData} />
       </div>
     </div>
   )

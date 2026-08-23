@@ -44,12 +44,14 @@ export default function InicioScreen() {
     vencimientoTipo, setVencimientoTipo, setNotesSheetRucId,
   } = useApp()
 
+  const tipoGrid = vencimientoTipo
+  const setTipoGrid = setVencimientoTipo
+
   const hoy = new Date()
   const mesActualIdx = hoy.getMonth()
   const mesAnteriorIdx = mesActualIdx > 0 ? mesActualIdx - 1 : 11
   const [mesSel, setMesSel] = useState(MESES[mesAnteriorIdx])
   const [anioSel, setAnioSel] = useState(String(hoy.getFullYear()))
-  const [tipoGrid, setTipoGrid] = useState('SIRE')
   const [vencData, setVencData] = useState({ SIRE: {}, 'DJ Mensual': {}, 'DJ Anual': {} })
   const [loadingVenc, setLoadingVenc] = useState(false)
   const [digitoModal, setDigitoModal] = useState(null)

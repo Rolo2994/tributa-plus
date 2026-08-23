@@ -1,5 +1,6 @@
 import React, { forwardRef } from 'react'
 import { formatMoney } from '../utils/formatMoney.js'
+import DebtTreemap from './DebtTreemap.jsx'
 
 const MES_ABBR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
 
@@ -9,7 +10,7 @@ const MES_ABBR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep',
  * usa medidas fijas en píxeles (no depende del tamaño real de pantalla)
  * y evita animaciones/transparencias que no capturan bien.
  */
-const DashboardShareCard = forwardRef(function DashboardShareCard({ empresaLabel, kpis, rows, fecha }, ref) {
+const DashboardShareCard = forwardRef(function DashboardShareCard({ empresaLabel, kpis, rows, fecha, treemapData }, ref) {
   return (
     <div ref={ref} style={{ width: 420, background: '#ffffff', padding: 24, fontFamily: 'Inter, sans-serif' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
@@ -32,6 +33,11 @@ const DashboardShareCard = forwardRef(function DashboardShareCard({ empresaLabel
             <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 17, color: k.color }}>{k.value}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ fontSize: 10, fontWeight: 700, color: '#68788A', textTransform: 'uppercase', marginBottom: 6 }}>Composición de la deuda</div>
+      <div style={{ marginBottom: 16 }}>
+        <DebtTreemap items={treemapData} height={170} />
       </div>
 
       <div style={{ fontSize: 10, fontWeight: 700, color: '#68788A', textTransform: 'uppercase', marginBottom: 6 }}>Detalle de tributos pendientes</div>

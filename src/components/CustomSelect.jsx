@@ -1,8 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react'
+import { useKeyboardInset } from '../hooks/useKeyboardInset.js'
 
 export default function CustomSelect({ value, onChange, options, placeholder = 'Elegir…', title = 'Elegir opción', className = '' }) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const keyboardInset = useKeyboardInset()
   const inputRef = useRef(null)
   const opts = useMemo(() => options.map((o) => (typeof o === 'string' ? { value: o, label: o } : o)), [options])
   const current = opts.find((o) => o.value === value)
@@ -42,7 +44,11 @@ export default function CustomSelect({ value, onChange, options, placeholder = '
 
       {open && (
         <div className="absolute inset-0 z-[90] bg-black/55 flex items-end" onClick={() => setOpen(false)}>
-          <div className="w-full bg-white rounded-t-[24px] max-h-[75vh] flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.2)]" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="w-full bg-white rounded-t-[24px] max-h-[75vh] flex flex-col shadow-[0_-8px_30px_rgba(0,0,0,0.2)]"
+            style={{ marginBottom: keyboardInset, transition: 'margin-bottom .15s ease' }}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mt-2.5 flex-shrink-0" />
 
             <div className="flex items-center justify-between px-5 pt-3 pb-2 flex-shrink-0">

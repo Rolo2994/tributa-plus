@@ -17,10 +17,6 @@ export default function DebtTreemap({ items, height = 220 }) {
 
   const total = items.reduce((s, i) => s + i.value, 0)
 
-  // Escala comprimida (raíz cuadrada) SOLO para calcular el tamaño visual —
-  // así ningún bloque queda tan chico que no quepa ni el nombre, aunque su
-  // proporción real de la deuda sea muy baja. El texto siempre muestra el
-  // monto y porcentaje REALES, sin distorsionar el dato.
   const withColor = items.map((it, i) => ({
     ...it,
     value: Math.sqrt(Math.max(it.value, 0.01)),
@@ -33,8 +29,11 @@ export default function DebtTreemap({ items, height = 220 }) {
     <div ref={containerRef} className="relative w-full" style={{ height }}>
       {rects.map((r) => {
         const pct = total > 0 ? (r.realValue / total) * 100 : 0
-        const grande = r.w > 60 && r.h > 42
-        const mediano = r.w > 34 && r.h > 26
+        // Cuántas líneas de texto caben verticalmente (14px por línea aprox.)
+        const maxLineas = Math.floor((r.h - 8) / 14)
+        const completo = r.w >= 56 && maxLineas >= 3
+        const medio = !completo && r.w >= 30 && maxLineas >= 2
+
         return (
           <div
             key={r.label}
@@ -48,21 +47,21 @@ export default function DebtTreemap({ items, height = 220 }) {
               boxShadow: '0 6px 14px -6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
             }}
           >
-            {grande && (
+            {completo && (
               <>
-                <span className="text-white font-semibold text-[10.5px] leading-tight drop-shadow-sm truncate w-full">{r.label}</span>
-                <span className="text-white/90 font-mono font-bold text-[12px] leading-tight">S/ {formatMoney(r.realValue)}</span>
-                <span className="text-white/70 text-[8.5px]">{pct.toFixed(0)}%</span>
+                <span className="text-white font-semibold text-[10.5px] leading-tight w-full truncate whitespace-nowrap">{r.label}</span>
+                <span className="text-white/90 font-mono font-bold text-[12px] leading-tight whitespace-nowrap">S/&nbsp;{formatMoney(r.realValue)}</span>
+                <span className="text-white/70 text-[8.5px] whitespace-nowrap">{pct.toFixed(0)}%</span>
               </>
             )}
-            {!grande && mediano && (
+            {medio && (
               <>
-                <span className="text-white font-semibold text-[9px] leading-tight truncate w-full">{r.label}</span>
-                <span className="text-white/80 text-[8px]">{pct.toFixed(0)}%</span>
+                <span className="text-white font-bold text-[9px] leading-tight w-full truncate whitespace-nowrap">{r.label}</span>
+                <span className="text-white/80 text-[8px] whitespace-nowrap">{pct.toFixed(0)}%</span>
               </>
             )}
-            {!grande && !mediano && (
-              <span className="text-white font-bold text-[8px] m-auto">{pct.toFixed(0)}%</span>
+            {!completo && !medio && r.w >= 16 && (
+              <span className="text-white font-bold text-[8px] m-auto whitespace-nowrap">{pct.toFixed(0)}%</span>
             )}
           </div>
         )
