@@ -6,7 +6,12 @@ import { VitePWA } from 'vite-plugin-pwa'
 // El plugin VitePWA genera automáticamente el manifest.json y el
 // service-worker.js al hacer "npm run build" — no hace falta escribirlos
 // a mano ni mantenerlos sincronizados manualmente.
+const buildTime = new Date().toISOString()
+
 export default defineConfig({
+  define: {
+    __BUILD_TIME__: JSON.stringify(buildTime),
+  },
   plugins: [
     react(),
     VitePWA({

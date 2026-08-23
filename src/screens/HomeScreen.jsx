@@ -20,8 +20,8 @@ export default function HomeScreen() {
   }
 
   return (
-    <div className="relative flex-1 flex flex-col min-h-0">
-      <div className="flex-shrink-0 px-4 pt-3.5 pb-2 space-y-2.5">
+    <div className="relative flex-1 flex flex-col min-h-0 min-w-0">
+      <div className="flex-shrink-0 min-w-0 px-4 pt-3.5 pb-2 space-y-2.5">
         <div className="relative">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted">
             <circle cx="11" cy="11" r="6" stroke="currentColor" strokeWidth="2" />

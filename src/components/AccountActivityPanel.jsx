@@ -105,6 +105,10 @@ export default function AccountActivityPanel() {
           ))}
         </div>
 
+        <div className="flex-shrink-0 px-4 pb-1 text-center text-[9.5px] text-muted">
+          Última actualización: {new Date(__BUILD_TIME__).toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' })}
+        </div>
+
         <button onClick={cerrar} className="flex-shrink-0 m-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">
           Cerrar
         </button>

@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext.jsx'
 export default function GroupFilterBar() {
   const { groupFilter, setGroupFilter, availableGroups } = useApp()
   return (
-    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1">
+    <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4 pb-1 min-w-0">
       {availableGroups.map((g) => (
         <button
           key={g}

@@ -135,7 +135,7 @@ export default function InicioScreen() {
   }
 
   return (
-    <div className="relative flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
+    <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-[130px]">
       <h2 className="font-display font-bold text-[14px] text-ink mb-2.5">Cronograma — {mesSel} {anioSel}</h2>
 
       <div
