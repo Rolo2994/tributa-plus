@@ -1,4 +1,3 @@
-cat > /home/claude/tributa-plus/src/utils/construirMensajeDashboard.js << 'EOF'
 import { formatMoney } from './formatMoney.js'
 
 export function construirMensajeDashboard(empresaLabel, kpis, rows) {
@@ -16,5 +15,3 @@ export function construirMensajeDashboard(empresaLabel, kpis, rows) {
   })
   return lineas.join('\n')
 }
-EOF
-echo OK
