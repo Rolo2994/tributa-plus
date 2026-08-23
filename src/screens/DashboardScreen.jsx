@@ -23,7 +23,7 @@ const ACCIONES = [
 ]
 
 export default function DashboardScreen() {
-  const { rucs, activeRuc, setDrawerOpen, pushLog, goScreen } = useApp()
+  const { rucs, visibleRucs, groupFilter, activeRuc, setDrawerOpen, pushLog, goScreen } = useApp()
 
   const [taxRows, setTaxRows] = useState([])
   const [loading, setLoading] = useState(false)
