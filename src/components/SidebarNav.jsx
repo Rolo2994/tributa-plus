@@ -25,7 +25,7 @@ const ITEMS_PRINCIPALES = [
 ]
 
 const ACCIONES_SUNAT = [
-  { id: 'buzon', label: 'Buzón PDF' },
+  { id: 'buzon-ejecutar', label: 'Buzón PDF' },
   { id: 'validez', label: 'Validez CP' },
   { id: 'detracc', label: 'Detracciones' },
   { id: 'sire', label: 'SIRE' },
