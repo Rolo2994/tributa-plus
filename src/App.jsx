@@ -41,11 +41,11 @@ export default function App() {
     // ── Contenedor raíz: en celular es una sola columna a pantalla
     // completa; a partir de "md" (tablet/PC) se convierte en un layout
     // de escritorio con barra lateral fija + panel de contenido ancho. ──
-    <div className="min-h-[100dvh] flex bg-[#D7DEE8] md:bg-[#EEF2F7]">
+    <div className="min-h-[100dvh] flex min-w-0 bg-[#D7DEE8] md:bg-[#EEF2F7]">
       <SidebarNav />
 
-      <div className="flex-1 flex md:items-start md:justify-center md:p-8">
-        <div className="relative w-full h-[100dvh] md:h-[860px] md:max-w-[440px] bg-bgapp overflow-hidden md:rounded-[32px] md:shadow-phone flex flex-col">
+       <div className="flex-1 flex min-w-0 md:items-start md:justify-center md:p-8">
+        <div className="relative w-full min-w-0 max-w-full h-[100dvh] md:h-[860px] md:max-w-[440px] bg-bgapp overflow-hidden md:rounded-[32px] md:shadow-phone flex flex-col">
           <LockScreen visible={locked} onUnlock={() => setLocked(false)} />
           <Header onLock={() => setLocked(true)} />
 
