@@ -4,7 +4,7 @@ import { ejecutarBuzon, consultarEstado } from '../services/buzonApi.js'
 
 export default function BuzonEjecutarScreen() {
   const { rucs, availableGroups, goScreen, pushLog } = useApp()
-  const [modo, setModo] = useState('rucs') // 'rucs' | 'grupo'
+  const [modo, setModo] = useState('rucs')
   const [selected, setSelected] = useState(new Set())
   const [grupoElegido, setGrupoElegido] = useState(null)
   const [fechaDesde, setFechaDesde] = useState('')
@@ -63,6 +63,12 @@ export default function BuzonEjecutarScreen() {
     }
   }
 
+  // Solo interesa mostrar: los que fallaron, o los que sí trajeron PDF.
+  // Los que corrieron bien pero sin nada que descargar, se omiten.
+  const resultadosRelevantes = (tarea?.resultados || []).filter(
+    (r) => r.estado === 'ERROR' || r.pdfs > 0
+  )
+
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1.5">
@@ -74,7 +80,26 @@ export default function BuzonEjecutarScreen() {
         <div className="font-display font-bold text-[15px]">Ejecutar Buzón PDF</div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-3 pb-[110px]">
+      <div className="px-4 pt-1">
+        <button
+          onClick={() => goScreen('buzon')}
+          className="w-full text-[12px] font-bold text-white bg-verde py-2.5 rounded-xl mb-3"
+        >
+          Ver / Enviar PDFs ya descargados
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pt-1 pb-[110px]">
+        <div className="mb-3">
+          <label className="text-[11px] font-semibold text-muted block mb-1">Buscar desde (opcional)</label>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className="w-full text-[12.5px] px-3 py-2 rounded-xl border border-bordersoft"
+          />
+        </div>
+
         <div className="flex gap-2 mb-3">
           <button
             onClick={() => setModo('rucs')}
@@ -88,16 +113,6 @@ export default function BuzonEjecutarScreen() {
           >
             Elegir grupo
           </button>
-        </div>
-
-        <div className="mb-3">
-          <label className="text-[11px] font-semibold text-muted block mb-1">Buscar desde (opcional)</label>
-          <input
-            type="date"
-            value={fechaDesde}
-            onChange={(e) => setFechaDesde(e.target.value)}
-            className="w-full text-[12.5px] px-3 py-2 rounded-xl border border-bordersoft"
-          />
         </div>
 
         {modo === 'grupo' ? (
@@ -141,24 +156,25 @@ export default function BuzonEjecutarScreen() {
             <div className="text-[12px] font-bold mb-2">
               {tarea.estado === 'completado' ? '✓ Completado' : `Procesando… (${tarea.procesados}/${tarea.total})`}
             </div>
-            {tarea.resultados?.map((r, i) => (
-              <div key={i} className="text-[11px] text-muted mb-1">
-                {r.razon} ({r.ruc}): {r.estado} — {r.pdfs} PDF(s) — {r.detalle}
+
+            {resultadosRelevantes.length === 0 && tarea.estado === 'completado' && (
+              <div className="text-[11px] text-muted">Sin novedades: no hubo errores ni PDFs nuevos.</div>
+            )}
+
+            {resultadosRelevantes.map((r, i) => (
+              <div
+                key={i}
+                className={`text-[11px] mb-1.5 px-2 py-1.5 rounded-lg ${r.estado === 'ERROR' ? 'bg-[#FCE9EB] text-rojo-sunat' : 'bg-[#EAF6EF] text-verde'}`}
+              >
+                <span className="font-semibold">{r.razon} ({r.ruc})</span> — {r.estado === 'ERROR' ? `Error: ${r.detalle}` : `${r.pdfs} PDF(s) — ${r.detalle}`}
               </div>
             ))}
+
             {tarea.estado === 'completado' && (
-               <>
-                   <div className="text-[12px] font-semibold text-verde mt-1 mb-2">
-                       {tarea.pdfs_subidos_drive} PDF(s) subidos a Drive
-                   </div>
-                   <button
-                        onClick={() => goScreen('buzon')}
-                        className="w-full bg-verde text-white text-[12px] font-bold py-2.5 rounded-xl"
-                    >
-                        Ver / Reenviar PDFs
-                    </button>
-                </>
-             )}
+              <div className="text-[12px] font-semibold text-verde mt-1">
+                {tarea.pdfs_subidos_drive} PDF(s) subidos a Drive en total
+              </div>
+            )}
           </div>
         )}
       </div>

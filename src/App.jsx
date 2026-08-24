@@ -27,11 +27,12 @@ const SCREENS = {
   buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen, 'buzon-ejecutar': BuzonEjecutarScreen,
   sire: SireScreen, settings: SettingsScreen,
 }
-const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire'])
+const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'buzon-ejecutar'])
 
 const TITULOS = {
   home: 'RUCs', alerts: 'Alertas', inicio: 'Vencimientos', dashboard: 'Dashboard tributario',
   buzon: 'Buzón PDF', validez: 'Validez CP', detracc: 'Detracciones', sire: 'SIRE', settings: 'Ajustes',
+  'buzon-ejecutar': 'Ejecutar Buzón PDF',
 }
 
 export default function App() {
@@ -51,7 +52,7 @@ export default function App() {
           panel de contenido. */}
       <LockScreen visible={locked} onUnlock={() => setLocked(false)} />
 
-      <div className="min-h-[100dvh] flex min-w-0 bg-[#D7DEE8] md:bg-[#EEF2F7]">
+      <div className="h-[100dvh] overflow-hidden flex min-w-0 bg-[#D7DEE8] md:bg-[#EEF2F7]">
         <SidebarNav />
 
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
