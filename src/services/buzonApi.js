@@ -16,3 +16,11 @@ export async function consultarEstado(tareaId) {
   })
   return res.json()
 }
+
+export async function obtenerPdfBlob(fileId) {
+  const res = await fetch(`${BASE_URL}/pdfs/${fileId}`, {
+    headers: { 'X-API-KEY': API_KEY },
+  })
+  if (!res.ok) throw new Error('No se pudo obtener el PDF')
+  return res.blob()
+}
