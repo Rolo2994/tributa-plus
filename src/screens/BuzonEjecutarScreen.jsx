@@ -147,10 +147,18 @@ export default function BuzonEjecutarScreen() {
               </div>
             ))}
             {tarea.estado === 'completado' && (
-              <div className="text-[12px] font-semibold text-verde mt-1">
-                {tarea.pdfs_subidos_drive} PDF(s) subidos a Drive
-              </div>
-            )}
+               <>
+                   <div className="text-[12px] font-semibold text-verde mt-1 mb-2">
+                       {tarea.pdfs_subidos_drive} PDF(s) subidos a Drive
+                   </div>
+                   <button
+                        onClick={() => goScreen('buzon')}
+                        className="w-full bg-verde text-white text-[12px] font-bold py-2.5 rounded-xl"
+                    >
+                        Ver / Reenviar PDFs
+                    </button>
+                </>
+             )}
           </div>
         )}
       </div>
