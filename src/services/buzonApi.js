@@ -17,6 +17,13 @@ export async function consultarEstado(tareaId) {
   return res.json()
 }
 
+export async function listarPdfs(fecha) {
+  const res = await fetch(`${BASE_URL}/pdfs?fecha=${fecha}`, {
+    headers: { 'X-API-KEY': API_KEY },
+  })
+  return res.json()
+}
+
 export async function obtenerPdfBlob(fileId) {
   const res = await fetch(`${BASE_URL}/pdfs/${fileId}`, {
     headers: { 'X-API-KEY': API_KEY },

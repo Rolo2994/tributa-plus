@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { obtenerPdfBlob } from '../services/buzonApi.js'
+import { listarPdfs, obtenerPdfBlob } from '../services/buzonApi.js'
 
 export default function BuzonScreen() {
   const { goScreen, pushLog } = useApp()
