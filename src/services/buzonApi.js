@@ -1,11 +1,11 @@
 const BASE_URL = import.meta.env.VITE_BUZON_API_URL || ''
 const API_KEY = import.meta.env.VITE_BUZON_API_KEY || ''
 
-export async function ejecutarBuzon({ rucs, grupo }) {
+export async function ejecutarBuzon({ rucs, grupo, fechaDesde }) {
   const res = await fetch(`${BASE_URL}/ejecutar-buzon`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
-    body: JSON.stringify(grupo ? { grupo } : { rucs }),
+    body: JSON.stringify({ ...(grupo ? { grupo } : { rucs }), ...(fechaDesde ? { fecha_desde: fechaDesde } : {}) }),
   })
   return res.json()
 }

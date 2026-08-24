@@ -7,6 +7,7 @@ export default function BuzonEjecutarScreen() {
   const [modo, setModo] = useState('rucs') // 'rucs' | 'grupo'
   const [selected, setSelected] = useState(new Set())
   const [grupoElegido, setGrupoElegido] = useState(null)
+  const [fechaDesde, setFechaDesde] = useState('')
   const [tareaId, setTareaId] = useState(null)
   const [tarea, setTarea] = useState(null)
   const [ejecutando, setEjecutando] = useState(false)
@@ -34,7 +35,10 @@ export default function BuzonEjecutarScreen() {
     setEjecutando(true)
     setTarea(null)
     try {
-      const payload = modo === 'grupo' ? { grupo: grupoElegido } : { rucs: Array.from(selected) }
+      const payload = {
+        ...(modo === 'grupo' ? { grupo: grupoElegido } : { rucs: Array.from(selected) }),
+        ...(fechaDesde ? { fechaDesde } : {}),
+      }
       const res = await ejecutarBuzon(payload)
       if (!res.ok) {
         pushLog(`✗ No se pudo iniciar: ${res.error}`)
@@ -84,6 +88,16 @@ export default function BuzonEjecutarScreen() {
           >
             Elegir grupo
           </button>
+        </div>
+
+        <div className="mb-3">
+          <label className="text-[11px] font-semibold text-muted block mb-1">Buscar desde (opcional)</label>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className="w-full text-[12.5px] px-3 py-2 rounded-xl border border-bordersoft"
+          />
         </div>
 
         {modo === 'grupo' ? (
