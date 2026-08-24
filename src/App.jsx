@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from './context/AppContext.jsx'
 import Header from './components/Header.jsx'
-import TopBar from './components/TopBar.jsx'
 import BottomNav from './components/BottomNav.jsx'
 import SidebarNav from './components/SidebarNav.jsx'
 import Drawer from './components/Drawer.jsx'
@@ -10,6 +9,7 @@ import NotesSheet from './components/NotesSheet.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import AccountActivityPanel from './components/AccountActivityPanel.jsx'
 import { useReminders } from './hooks/useReminders.js'
+import BuzonEjecutarScreen from './screens/BuzonEjecutarScreen.jsx'
 
 import HomeScreen from './screens/HomeScreen.jsx'
 import AlertsScreen from './screens/AlertsScreen.jsx'
@@ -24,14 +24,9 @@ import SettingsScreen from './screens/SettingsScreen.jsx'
 const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, dashboard: DashboardScreen,
   buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen,
-  sire: SireScreen, settings: SettingsScreen,
+  sire: SireScreen, settings: SettingsScreen,'buzon-ejecutar': BuzonEjecutarScreen,
 }
-const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire'])
-
-const TITULOS = {
-  home: 'RUCs', alerts: 'Alertas', inicio: 'Vencimientos', dashboard: 'Dashboard tributario',
-  buzon: 'Buzón PDF', validez: 'Validez CP', detracc: 'Detracciones', sire: 'SIRE', settings: 'Ajustes',
-}
+const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'buzon-ejecutar'])
 
 export default function App() {
   const { currentScreen, sincronizarDatos, syncing, syncError, rucs } = useApp()
@@ -43,31 +38,21 @@ export default function App() {
   const ActiveScreen = SCREENS[currentScreen] || HomeScreen
 
   return (
-    <>
-      {/* La pantalla de bloqueo cubre TODO — sidebar incluido — mientras
-          no se desbloquee. Por eso vive fuera del layout, como overlay
-          fijo con su propio z-index, no como una pieza más adentro del
-          panel de contenido. */}
-      <LockScreen visible={locked} onUnlock={() => setLocked(false)} />
+    // ── Contenedor raíz: en celular es una sola columna a pantalla
+    // completa; a partir de "md" (tablet/PC) se convierte en un layout
+    // de escritorio con barra lateral fija + panel de contenido ancho. ──
+    <div className="min-h-[100dvh] flex bg-[#D7DEE8] md:bg-[#EEF2F7]">
+      <SidebarNav />
 
-      <div className="min-h-[100dvh] flex min-w-0 bg-[#D7DEE8] md:bg-[#EEF2F7]">
-        <SidebarNav />
+      <div className="flex-1 flex md:items-start md:justify-center md:p-8">
+        <div className="relative w-full h-[100dvh] md:h-[860px] md:max-w-[440px] bg-bgapp overflow-hidden md:rounded-[32px] md:shadow-phone flex flex-col">
+          <LockScreen visible={locked} onUnlock={() => setLocked(false)} />
+          <Header onLock={() => setLocked(true)} />
 
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          {/* Celular: header propio de la app (reloj, candado, RUCs). */}
-          <div className="md:hidden">
-            <Header onLock={() => setLocked(true)} />
-          </div>
-
-          {/* Escritorio: barra superior liviana, sin repetir lo del sidebar. */}
-          <div className="hidden md:block">
-            <TopBar titulo={TITULOS[currentScreen] || ''} onLock={() => setLocked(true)} />
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <ErrorBoundary>
               {syncError && (
-                <div className="mx-4 md:mx-8 mt-2 mb-1 text-[10.5px] bg-[#FCE9EB] text-rojo-sunat px-3 py-2 rounded-lg">
+                <div className="mx-4 mt-2 mb-1 text-[10.5px] bg-[#FCE9EB] text-rojo-sunat px-3 py-2 rounded-lg">
                   No se pudo sincronizar con Google Sheets: {syncError}
                 </div>
               )}
@@ -86,14 +71,14 @@ export default function App() {
               <BottomNav />
             </div>
           )}
+
+          <ErrorBoundary>
+            <Drawer />
+            <NotesSheet />
+            <AccountActivityPanel />
+          </ErrorBoundary>
         </div>
       </div>
-
-      <ErrorBoundary>
-        <Drawer />
-        <NotesSheet />
-        <AccountActivityPanel />
-      </ErrorBoundary>
-    </>
+    </div>
   )
 }
