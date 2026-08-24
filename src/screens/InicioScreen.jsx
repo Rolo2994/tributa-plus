@@ -213,7 +213,7 @@ export default function InicioScreen() {
         {loadingVenc ? (
           <div className="text-center text-muted text-[12px] py-4">Cargando cronograma…</div>
         ) : (
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 md:grid-cols-6 gap-2">
             {DIGITOS_RUC.map((d) => (
               <DigitButton key={d} digito={d} fechaISO={vencData[tipoGrid]?.[d]} estado={estadoDigito(vencData[tipoGrid]?.[d], hoyISO, proxISO)} onClick={() => setDigitoModal(d)} />
             ))}

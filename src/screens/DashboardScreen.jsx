@@ -125,10 +125,8 @@ export default function DashboardScreen() {
     })
   }, [taxRows, vencCache, rucs, hoyISO])
 
-  // Solo cuenta como "disponibles" los RUCs que además pasan el filtro de
-  // Grupo (el mismo que usas en RUCs/Inicio, ahora también aquí).
   const rucsPermitidos = useMemo(() => {
-    if (groupFilter === 'Todos') return null // null = sin restricción
+    if (groupFilter === 'Todos') return null
     return new Set(visibleRucs.map((r) => r.ruc))
   }, [visibleRucs, groupFilter])
 
@@ -266,7 +264,8 @@ export default function DashboardScreen() {
 
       {!loading && (
         <>
-          <div className="grid grid-cols-2 gap-2.5 mb-4">
+          {/* KPIs: 2 cols en movil, 4 en escritorio */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
             <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5">
               <div className="text-[9.5px] text-muted uppercase tracking-wide font-semibold mb-1">Deuda actualizada</div>
               <div className="font-display font-extrabold text-[18px] text-ink">S/ {formatMoney(kpis.deudaTotalActualizada)}</div>
@@ -285,49 +284,56 @@ export default function DashboardScreen() {
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="font-bold text-[12.5px] text-ink">Composición de la deuda</div>
-              <div className="flex bg-[#F1F4F8] rounded-lg p-[3px]">
-                <button onClick={() => setVistaGrafico('tributo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'tributo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por tributo</button>
-                <button onClick={() => setVistaGrafico('periodo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'periodo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por periodo</button>
+          {/* Grilla de 2 columnas en escritorio para Gráfico + Tabla */}
+          <div className="md:grid md:grid-cols-2 md:gap-4 md:items-start">
+            
+            {/* Gráfico */}
+            <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="font-bold text-[12.5px] text-ink">Composición de la deuda</div>
+                <div className="flex bg-[#F1F4F8] rounded-lg p-[3px]">
+                  <button onClick={() => setVistaGrafico('tributo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'tributo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por tributo</button>
+                  <button onClick={() => setVistaGrafico('periodo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'periodo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por periodo</button>
+                </div>
+              </div>
+              <DebtTreemap items={treemapData} />
+            </div>
+
+            {/* Tabla */}
+            <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card overflow-hidden mb-5">
+              <div className="px-3.5 py-2.5 bg-azul-dark text-white text-[11px] font-semibold">{rowsFiltradas.length} tributo(s) pendiente(s)</div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[10.5px]">
+                  <thead>
+                    <tr className="bg-[#F1F5FA] text-muted text-left">
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Tributo</th>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Periodo</th>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Deuda</th>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Vence</th>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Interés</th>
+                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Actualizado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rowsFiltradas.map((r, i) => (
+                      <tr key={r.id} className={`border-t border-[#F1F4F8] ${r.diasAtraso > 0 ? 'bg-[#FCE9EB]/40' : i % 2 ? 'bg-[#FAFBFD]' : 'bg-white'}`}>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-ink font-semibold">{r.tributo}</td>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-muted">{MES_ABBR[r.mes - 1] || r.mes}/{r.anio}</td>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono">{formatMoney(r.saldoPendiente)}</td>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-muted">{r.fechaVenc ? r.fechaVenc.slice(5) : '—'}{r.diasAtraso > 0 && <span className="text-rojo-sunat font-semibold"> ({r.diasAtraso}d)</span>}</td>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono text-rojo-sunat">{formatMoney(r.interes)}</td>
+                        <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono font-semibold text-ink">{formatMoney(r.montoActualizado)}</td>
+                      </tr>
+                    ))}
+                    {rowsFiltradas.length === 0 && (
+                      <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">Sin deuda pendiente para este filtro.</td></tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
-            <DebtTreemap items={treemapData} />
-          </div>
 
-          <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card overflow-hidden mb-5">
-            <div className="px-3.5 py-2.5 bg-azul-dark text-white text-[11px] font-semibold">{rowsFiltradas.length} tributo(s) pendiente(s)</div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-[10.5px]">
-                <thead>
-                  <tr className="bg-[#F1F5FA] text-muted text-left">
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Tributo</th>
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Periodo</th>
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Deuda</th>
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Vence</th>
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Interés</th>
-                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Actualizado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rowsFiltradas.map((r, i) => (
-                    <tr key={r.id} className={`border-t border-[#F1F4F8] ${r.diasAtraso > 0 ? 'bg-[#FCE9EB]/40' : i % 2 ? 'bg-[#FAFBFD]' : 'bg-white'}`}>
-                      <td className="px-2.5 py-2 whitespace-nowrap text-ink font-semibold">{r.tributo}</td>
-                      <td className="px-2.5 py-2 whitespace-nowrap text-muted">{MES_ABBR[r.mes - 1] || r.mes}/{r.anio}</td>
-                      <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono">{formatMoney(r.saldoPendiente)}</td>
-                      <td className="px-2.5 py-2 whitespace-nowrap text-muted">{r.fechaVenc ? r.fechaVenc.slice(5) : '—'}{r.diasAtraso > 0 && <span className="text-rojo-sunat font-semibold"> ({r.diasAtraso}d)</span>}</td>
-                      <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono text-rojo-sunat">{formatMoney(r.interes)}</td>
-                      <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono font-semibold text-ink">{formatMoney(r.montoActualizado)}</td>
-                    </tr>
-                  ))}
-                  {rowsFiltradas.length === 0 && (
-                    <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">Sin deuda pendiente para este filtro.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          </div> {/* Cierre de la grilla de escritorio */}
         </>
       )}
 

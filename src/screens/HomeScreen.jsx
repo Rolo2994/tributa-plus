@@ -51,9 +51,11 @@ export default function HomeScreen() {
           <span className="text-[11px] text-muted">{filtrados.length} clientes</span>
         </div>
 
-        {filtrados.map((r) => (
-          <RucCard key={r.id} ruc={r} onClick={() => handleSelectRuc(r.id)} />
-        ))}
+        <div className="md:grid md:grid-cols-2 lg:grid-cols-3 md:gap-2.5">
+          {filtrados.map((r) => (
+            <RucCard key={r.id} ruc={r} onClick={() => handleSelectRuc(r.id)} />
+          ))}
+        </div>
 
         {filtrados.length === 0 && search && (
           <div className="text-center text-muted text-[12px] py-10">

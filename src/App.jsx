@@ -44,8 +44,8 @@ export default function App() {
     <div className="min-h-[100dvh] flex min-w-0 bg-[#D7DEE8] md:bg-[#EEF2F7]">
       <SidebarNav />
 
-       <div className="flex-1 flex min-w-0 md:items-start md:justify-center md:p-8">
-        <div className="relative w-full min-w-0 max-w-full h-[100dvh] md:h-[860px] md:max-w-[440px] bg-bgapp overflow-hidden md:rounded-[32px] md:shadow-phone flex flex-col">
+       <div className="flex-1 flex min-w-0 md:items-stretch">
+        <div className="relative w-full min-w-0 max-w-full h-[100dvh] md:max-w-[1180px] md:mx-auto bg-bgapp overflow-hidden flex flex-col">
           <LockScreen visible={locked} onUnlock={() => setLocked(false)} />
           <Header onLock={() => setLocked(true)} />
 
