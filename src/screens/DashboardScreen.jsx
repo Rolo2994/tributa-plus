@@ -16,7 +16,7 @@ import { PAGINAS_LOGIN, PAGINAS_DIRECTAS } from '../data/mockData.js'
 const MES_ABBR = MESES.map((m) => m.slice(0, 3))
 
 const ACCIONES = [
-  { id: 'buzon-ejecutar', label: 'Buzón PDF', icon: '📥' },
+  { id: 'buzon', label: 'Buzón PDF', icon: '📥' },
   { id: 'validez', label: 'Validez CP', icon: '🔎' },
   { id: 'detracc', label: 'Detracciones', icon: '📊' },
   { id: 'sire', label: 'SIRE', icon: '⬇' },
@@ -29,7 +29,7 @@ export default function DashboardScreen() {
   const [loading, setLoading] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
   const [vencCache, setVencCache] = useState({})
-  const [empresaFiltro, setEmpresaFiltro] = useState('Todas')
+  const [empresaFiltro, setEmpresaFiltro] = useState(null)
   const [vistaGrafico, setVistaGrafico] = useState('tributo')
   const [compartirOpen, setCompartirOpen] = useState(false)
   const [generandoImagen, setGenerandoImagen] = useState(false)
@@ -125,28 +125,19 @@ export default function DashboardScreen() {
     })
   }, [taxRows, vencCache, rucs, hoyISO])
 
-  const rucsPermitidos = useMemo(() => {
-    if (groupFilter === 'Todos') return null
-    return new Set(visibleRucs.map((r) => r.ruc))
-  }, [visibleRucs, groupFilter])
-
-  const rowsCalculadasFiltradasPorGrupo = useMemo(() => {
-    if (!rucsPermitidos) return rowsCalculadas
-    return rowsCalculadas.filter((r) => rucsPermitidos.has(r.ruc))
-  }, [rowsCalculadas, rucsPermitidos])
-
   const empresas = useMemo(() => {
     const map = new Map()
-    rowsCalculadasFiltradasPorGrupo.forEach((r) => {
+    rowsCalculadas.forEach((r) => {
       if (!map.has(r.ruc)) map.set(r.ruc, r.razonSocial)
     })
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [rowsCalculadasFiltradasPorGrupo])
+  }, [rowsCalculadas])
 
   const rowsFiltradas = useMemo(() => {
-    if (empresaFiltro === 'Todas') return rowsCalculadasFiltradasPorGrupo
-    return rowsCalculadasFiltradasPorGrupo.filter((r) => r.ruc === empresaFiltro)
-  }, [rowsCalculadasFiltradasPorGrupo, empresaFiltro])
+    if (!empresaFiltro) return []
+    if (empresaFiltro === 'Todas') return rowsCalculadas
+    return rowsCalculadas.filter((r) => r.ruc === empresaFiltro)
+  }, [rowsCalculadas, empresaFiltro])
 
   const kpis = useMemo(() => {
     const totalInteres = rowsFiltradas.reduce((s, r) => s + r.interes, 0)
@@ -247,6 +238,7 @@ export default function DashboardScreen() {
 
       <CustomSelect
         title="Filtrar por empresa"
+        placeholder="Elige una empresa para comenzar…"
         value={empresaFiltro}
         onChange={setEmpresaFiltro}
         options={[{ value: 'Todas', label: `Todas las empresas (${empresas.length})` }, ...empresas.map(([ruc, nombre]) => ({ value: ruc, label: `${nombre} — ${ruc}` }))]}
@@ -262,9 +254,20 @@ export default function DashboardScreen() {
         <div className="text-center text-muted text-[12px] py-8">Cargando deuda pendiente…</div>
       )}
 
-      {!loading && (
+      {!loading && !empresaFiltro && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#EAF1FA] flex items-center justify-center mb-4">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0B3A60" strokeWidth="1.6">
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <div className="font-display font-bold text-[14px] text-ink mb-1.5">Elige una empresa para comenzar</div>
+          <div className="text-[11.5px] text-muted max-w-[260px]">Selecciona un RUC arriba para ver su deuda pendiente, intereses generados y cronograma actualizado.</div>
+        </div>
+      )}
+
+      {!loading && empresaFiltro && (
         <>
-          {/* KPIs: 2 cols en movil, 4 en escritorio */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-4">
             <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5">
               <div className="text-[9.5px] text-muted uppercase tracking-wide font-semibold mb-1">Deuda actualizada</div>
@@ -284,56 +287,49 @@ export default function DashboardScreen() {
             </div>
           </div>
 
-          {/* Grilla de 2 columnas en escritorio para Gráfico + Tabla */}
-          <div className="md:grid md:grid-cols-2 md:gap-4 md:items-start">
-            
-            {/* Gráfico */}
-            <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="font-bold text-[12.5px] text-ink">Composición de la deuda</div>
-                <div className="flex bg-[#F1F4F8] rounded-lg p-[3px]">
-                  <button onClick={() => setVistaGrafico('tributo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'tributo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por tributo</button>
-                  <button onClick={() => setVistaGrafico('periodo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'periodo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por periodo</button>
-                </div>
+          <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-bold text-[12.5px] text-ink">Composición de la deuda</div>
+              <div className="flex bg-[#F1F4F8] rounded-lg p-[3px]">
+                <button onClick={() => setVistaGrafico('tributo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'tributo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por tributo</button>
+                <button onClick={() => setVistaGrafico('periodo')} className={`px-2.5 py-1.5 text-[10.5px] font-semibold rounded-md ${vistaGrafico === 'periodo' ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}>Por periodo</button>
               </div>
-              <DebtTreemap items={treemapData} />
             </div>
+            <DebtTreemap items={treemapData} />
+          </div>
 
-            {/* Tabla */}
-            <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card overflow-hidden mb-5">
-              <div className="px-3.5 py-2.5 bg-azul-dark text-white text-[11px] font-semibold">{rowsFiltradas.length} tributo(s) pendiente(s)</div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-[10.5px]">
-                  <thead>
-                    <tr className="bg-[#F1F5FA] text-muted text-left">
-                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Tributo</th>
-                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Periodo</th>
-                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Deuda</th>
-                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Vence</th>
-                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Interés</th>
-                      <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Actualizado</th>
+          <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card overflow-hidden mb-5">
+            <div className="px-3.5 py-2.5 bg-azul-dark text-white text-[11px] font-semibold">{rowsFiltradas.length} tributo(s) pendiente(s)</div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-[10.5px]">
+                <thead>
+                  <tr className="bg-[#F1F5FA] text-muted text-left">
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Tributo</th>
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Periodo</th>
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Deuda</th>
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap">Vence</th>
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Interés</th>
+                    <th className="px-2.5 py-2 font-semibold whitespace-nowrap text-right">Actualizado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rowsFiltradas.map((r, i) => (
+                    <tr key={r.id} className={`border-t border-[#F1F4F8] ${r.diasAtraso > 0 ? 'bg-[#FCE9EB]/40' : i % 2 ? 'bg-[#FAFBFD]' : 'bg-white'}`}>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-ink font-semibold">{r.tributo}</td>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-muted">{MES_ABBR[r.mes - 1] || r.mes}/{r.anio}</td>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono">{formatMoney(r.saldoPendiente)}</td>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-muted">{r.fechaVenc ? r.fechaVenc.slice(5) : '—'}{r.diasAtraso > 0 && <span className="text-rojo-sunat font-semibold"> ({r.diasAtraso}d)</span>}</td>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono text-rojo-sunat">{formatMoney(r.interes)}</td>
+                      <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono font-semibold text-ink">{formatMoney(r.montoActualizado)}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {rowsFiltradas.map((r, i) => (
-                      <tr key={r.id} className={`border-t border-[#F1F4F8] ${r.diasAtraso > 0 ? 'bg-[#FCE9EB]/40' : i % 2 ? 'bg-[#FAFBFD]' : 'bg-white'}`}>
-                        <td className="px-2.5 py-2 whitespace-nowrap text-ink font-semibold">{r.tributo}</td>
-                        <td className="px-2.5 py-2 whitespace-nowrap text-muted">{MES_ABBR[r.mes - 1] || r.mes}/{r.anio}</td>
-                        <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono">{formatMoney(r.saldoPendiente)}</td>
-                        <td className="px-2.5 py-2 whitespace-nowrap text-muted">{r.fechaVenc ? r.fechaVenc.slice(5) : '—'}{r.diasAtraso > 0 && <span className="text-rojo-sunat font-semibold"> ({r.diasAtraso}d)</span>}</td>
-                        <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono text-rojo-sunat">{formatMoney(r.interes)}</td>
-                        <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono font-semibold text-ink">{formatMoney(r.montoActualizado)}</td>
-                      </tr>
-                    ))}
-                    {rowsFiltradas.length === 0 && (
-                      <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">Sin deuda pendiente para este filtro.</td></tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                  ))}
+                  {rowsFiltradas.length === 0 && (
+                    <tr><td colSpan={6} className="px-3 py-6 text-center text-muted">Sin deuda pendiente para este filtro.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-
-          </div> {/* Cierre de la grilla de escritorio */}
+          </div>
         </>
       )}
 

@@ -6,10 +6,9 @@ import { DIGITOS_RUC, TIPOS_VENCIMIENTO, obtenerDigitoRuc } from '../utils/digit
 import { MESES } from '../utils/meses.js'
 import { diaMes } from '../utils/formatFecha.js'
 import TributoForm from '../components/TributoForm.jsx'
-import GroupFilterBar from '../components/GroupFilterBar.jsx'
-import RucCard from '../components/RucCard.jsx'
-import { ocurreEnFecha } from '../utils/recurrencia.js'
 import CustomSelect from '../components/CustomSelect.jsx'
+import GroupFilterBar from '../components/GroupFilterBar.jsx'
+import { PAGINAS_LOGIN, PAGINAS_DIRECTAS } from '../data/mockData.js'
 
 const COLOR_ESTADO = {
   hoy: 'bg-rojo-sunat text-white',
@@ -39,24 +38,22 @@ function DigitButton({ digito, fechaISO, estado, onClick }) {
 
 export default function InicioScreen() {
   const {
-    pushLog, todosLosRecordatorios, toggleRecordarTributo, editTributoDeRuc, removeTributoDeRuc,
-    rucs, visibleRucs, groupFilter, setGroupFilter, availableGroups, tributos, tributosBase,
-    vencimientoTipo, setVencimientoTipo, setNotesSheetRucId,
+    pushLog, todosLosRecordatorios, editTributoDeRuc, removeTributoDeRuc,
+    rucs, visibleRucs, groupFilter, availableGroups, tributos, tributosBase,
+    vencimientoTipo, setVencimientoTipo, activeRuc,
   } = useApp()
-
-  const tipoGrid = vencimientoTipo
-  const setTipoGrid = setVencimientoTipo
 
   const hoy = new Date()
   const mesActualIdx = hoy.getMonth()
   const mesAnteriorIdx = mesActualIdx > 0 ? mesActualIdx - 1 : 11
   const [mesSel, setMesSel] = useState(MESES[mesAnteriorIdx])
   const [anioSel, setAnioSel] = useState(String(hoy.getFullYear()))
+  const tipoGrid = vencimientoTipo
+  const setTipoGrid = setVencimientoTipo
   const [vencData, setVencData] = useState({ SIRE: {}, 'DJ Mensual': {}, 'DJ Anual': {} })
   const [loadingVenc, setLoadingVenc] = useState(false)
   const [digitoModal, setDigitoModal] = useState(null)
   const [tablaModalOpen, setTablaModalOpen] = useState(false)
-  const [recordModalTipo, setRecordModalTipo] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
 
   useEffect(() => {
@@ -97,30 +94,12 @@ export default function InicioScreen() {
   }, [mesSel, anioSel])
   const fechaAfpISO = toISO(fechaAfp)
 
-  const { cuadroHoy, cuadroProx } = useMemo(() => {
-    const ch = [], cp = []
-    TIPOS_VENCIMIENTO.forEach((tipo) => {
-      const data = vencData[tipo] || {}
-      const dh = DIGITOS_RUC.filter((d) => data[d] === hoyISO)
-      const dp = DIGITOS_RUC.filter((d) => data[d] === proxISO)
-      if (dh.length) ch.push({ tipo, digitos: dh })
-      if (dp.length) cp.push({ tipo, digitos: dp })
-    })
-    if (fechaAfpISO === hoyISO) ch.push({ tipo: 'AFPnet', digitos: [] })
-    if (fechaAfpISO === proxISO) cp.push({ tipo: 'AFPnet', digitos: [] })
-    return { cuadroHoy: ch, cuadroProx: cp }
-  }, [vencData, hoyISO, proxISO, fechaAfpISO])
-
-  const activos = todosLosRecordatorios.filter((r) => r.recordar)
-  const recordatoriosHoy = activos.filter((r) => ocurreEnFecha(r, hoyISO))
-  const recordatoriosProx = activos.filter((r) => ocurreEnFecha(r, proxISO))
-
   const rucsBase = groupFilter === 'Todos' ? rucs : visibleRucs
   const rucsPorDigito = digitoModal && digitoModal !== '__AFP__'
     ? rucsBase.filter((r) => obtenerDigitoRuc(r) === digitoModal)
     : []
 
-  function abrirEdicion(item) { setRecordModalTipo(null); setEditingItem(item) }
+  function abrirEdicion(item) { setEditingItem(item) }
   function handleEditar(data) {
     if (!editingItem) return
     editTributoDeRuc(editingItem.rucId, editingItem.id, data)
@@ -135,49 +114,32 @@ export default function InicioScreen() {
   }
 
   return (
-    <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-[130px]">
+    <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 pt-4 pb-[130px] md:pb-8">
       <h2 className="font-display font-bold text-[14px] text-ink mb-2.5">Cronograma — {mesSel} {anioSel}</h2>
 
-      <div
-        onClick={() => (cuadroHoy.length || recordatoriosHoy.length) && setRecordModalTipo('hoy')}
-        className={`bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5 ${(cuadroHoy.length || recordatoriosHoy.length) ? 'cursor-pointer' : ''}`}
-      >
-        <div className="font-bold text-[12.5px] mb-1 text-rojo-sunat">🔴 Vence hoy — {hoy.toLocaleDateString('es-PE')}</div>
-        {cuadroHoy.length === 0 ? (
-          <div className="text-[10.5px] text-muted">Nada vence hoy en el periodo seleccionado.</div>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {cuadroHoy.map((c) => (
-              <span key={c.tipo} className="text-[10.5px] font-semibold bg-[#FCE9EB] text-rojo-sunat px-2.5 py-1 rounded-full">
-                {c.tipo}{c.digitos.length ? ` · ${c.digitos.join(', ')}` : ''}
-              </span>
-            ))}
-          </div>
-        )}
-        {recordatoriosHoy.length > 0 && (
-          <div className="text-[10.5px] font-semibold text-rojo-sunat mt-1.5">＋ {recordatoriosHoy.length} recordatorio(s) creados para hoy — toca para ver</div>
-        )}
-      </div>
-
-      <div
-        onClick={() => (cuadroProx.length || recordatoriosProx.length) && setRecordModalTipo('prox')}
-        className={`bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5 ${(cuadroProx.length || recordatoriosProx.length) ? 'cursor-pointer' : ''}`}
-      >
-        <div className="font-bold text-[12.5px] mb-1" style={{ color: '#D9A404' }}>🟡 Próximo día hábil — {proximoDiaHabil(hoy).toLocaleDateString('es-PE')}</div>
-        {cuadroProx.length === 0 ? (
-          <div className="text-[10.5px] text-muted">Nada por vencer en el periodo seleccionado.</div>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {cuadroProx.map((c) => (
-              <span key={c.tipo} className="text-[10.5px] font-semibold bg-[#FBF1DD] text-[#8A6A00] px-2.5 py-1 rounded-full">
-                {c.tipo}{c.digitos.length ? ` · ${c.digitos.join(', ')}` : ''}
-              </span>
-            ))}
-          </div>
-        )}
-        {recordatoriosProx.length > 0 && (
-          <div className="text-[10.5px] font-semibold" style={{ color: '#8A6A00' }}>＋ {recordatoriosProx.length} recordatorio(s) creados — toca para ver</div>
-        )}
+      {/* ── Accesos rápidos compactos (login + directos) ── */}
+      <div className="mb-4">
+        <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-2">Accesos rápidos — {activeRuc?.razonSocial || 'elige un RUC'}</div>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {PAGINAS_LOGIN.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => { pushLog(`Iniciando sesión — ${activeRuc?.razonSocial || '—'} → ${p.nombre}`); setTimeout(() => pushLog(`✓ Sesión abierta en ${p.nombre}`), 700) }}
+              className="flex-shrink-0 w-[108px] bg-white rounded-xl border border-[#F0F3F7] shadow-card p-2.5 text-left"
+            >
+              <div className="text-[10px] font-semibold text-ink leading-tight">{p.nombre}</div>
+            </button>
+          ))}
+          {PAGINAS_DIRECTAS.map((d) => (
+            <button
+              key={d.id}
+              onClick={() => pushLog(`Abriendo ${d.nombre}…`)}
+              className="flex-shrink-0 w-[108px] bg-[#F1F4F8] rounded-xl border border-bordersoft p-2.5 text-center"
+            >
+              <div className="text-[10px] font-semibold text-azul-inst leading-tight">{d.nombre}</div>
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="flex items-center justify-between mt-4 mb-2">
@@ -189,8 +151,9 @@ export default function InicioScreen() {
 
       <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5">
         <div className="flex gap-2 mb-2.5">
-          <CustomSelect value={mesSel} onChange={setMesSel} options={MESES} className="flex-1" />
+          <CustomSelect title="Mes" value={mesSel} onChange={setMesSel} options={MESES} className="flex-1" />
           <CustomSelect
+            title="Año"
             value={anioSel}
             onChange={setAnioSel}
             options={[hoy.getFullYear() - 1, hoy.getFullYear(), hoy.getFullYear() + 1].map((a) => String(a))}
@@ -228,43 +191,6 @@ export default function InicioScreen() {
         </div>
       </div>
 
-      {recordModalTipo && (
-        <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setRecordModalTipo(null)}>
-          <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
-            <div className="font-display font-bold text-[14px] mb-3">
-              Recordatorios — {recordModalTipo === 'hoy' ? 'vence hoy' : 'próximo día hábil'}
-            </div>
-            {(recordModalTipo === 'hoy' ? recordatoriosHoy : recordatoriosProx).map((r) => (
-              <div
-                key={`${r.rucId}-${r.id}`}
-                onClick={() => abrirEdicion(r)}
-                className="flex items-center gap-3 bg-white rounded-2xl p-3.5 mb-2.5 border border-[#F0F3F7] shadow-card cursor-pointer active:scale-[0.98] transition-transform"
-              >
-                <div className={`w-9 h-9 rounded-[10px] flex-shrink-0 flex items-center justify-center font-display font-bold text-[11px] text-white ${recordModalTipo === 'hoy' ? 'bg-rojo-sunat' : 'bg-ambar'}`}>
-                  {r.nombre.slice(0, 3).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-[12.5px] font-semibold text-ink truncate flex items-center gap-1.5">
-                    {r.esTarea && <span className="text-[9px] bg-[#EFE9FB] text-[#5B3FA8] font-bold px-1.5 py-[1px] rounded">TAREA</span>}
-                    {r.nombre}{r.tributoAsociado ? ` · ${r.tributoAsociado}` : ''}
-                  </div>
-                  <div className="text-[10.5px] text-muted mt-0.5 truncate">{r.rucNombre} · {r.rucNumero}</div>
-                  <div className="text-[10px] text-muted mt-0.5">{r.hora}{r.monto ? ` · S/ ${r.monto}` : ''}</div>
-                </div>
-                <svg className="text-[#C3CEDA] flex-shrink-0" width="16" height="16" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              </div>
-            ))}
-            {(recordModalTipo === 'hoy' ? recordatoriosHoy : recordatoriosProx).length === 0 && (
-              <div className="text-center text-muted text-[12px] py-4">Sin recordatorios para esta fecha.</div>
-            )}
-            <button onClick={() => setRecordModalTipo(null)} className="w-full mt-4 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">Cerrar</button>
-          </div>
-        </div>
-      )}
-
       {digitoModal && (
         <div className="absolute inset-0 z-[60] bg-black/50 flex items-end" onClick={() => setDigitoModal(null)}>
           <div className="w-full bg-white rounded-t-2xl p-5 max-h-[80%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
@@ -274,7 +200,10 @@ export default function InicioScreen() {
             </div>
             <div className="text-[10.5px] text-muted mb-3">Grupo: {groupFilter}</div>
             {(digitoModal === '__AFP__' ? rucsBase : rucsPorDigito).map((r) => (
-              <RucCard key={r.id} ruc={r} onClick={() => { setDigitoModal(null); setNotesSheetRucId(r.id) }} />
+              <div key={r.id} className="py-2.5 border-b border-[#F4F6F9]">
+                <div className="text-[12px] font-semibold">{r.razonSocial}</div>
+                <div className="font-mono text-[10.5px] text-muted">{r.ruc}</div>
+              </div>
             ))}
             {digitoModal !== '__AFP__' && rucsPorDigito.length === 0 && (
               <div className="text-center text-muted text-[12px] py-4">Ningún RUC con este dígito en el grupo seleccionado.</div>
@@ -296,7 +225,6 @@ export default function InicioScreen() {
             </button>
           </div>
 
-          {/* Encabezado de columnas — fijo, no scrollea */}
           <div className="flex-shrink-0 px-4 pt-3">
             <table className="w-full border-collapse table-fixed">
               <thead>
@@ -312,7 +240,6 @@ export default function InicioScreen() {
             </table>
           </div>
 
-          {/* Filas de dígitos — esta es la única parte que scrollea */}
           <div className="flex-1 overflow-y-auto px-4">
             <table className="w-full border-collapse table-fixed">
               <tbody>
@@ -351,7 +278,6 @@ export default function InicioScreen() {
             </table>
           </div>
 
-          {/* AFPnet — fijo abajo, no scrollea */}
           <div className="flex-shrink-0 px-4 py-3 border-t border-bordersoft">
             <button
               onClick={() => { setTablaModalOpen(false); setDigitoModal('__AFP__') }}

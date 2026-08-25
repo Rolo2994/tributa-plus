@@ -5,6 +5,7 @@ import SwipeableReminderCard from '../components/SwipeableReminderCard.jsx'
 import RucCard from '../components/RucCard.jsx'
 import Toast from '../components/Toast.jsx'
 import { labelRecurrencia } from '../utils/recurrencia.js'
+import { useVencimientosHoy } from '../hooks/useVencimientosHoy.js'
 
 export default function AlertsScreen() {
   const {
@@ -12,20 +13,25 @@ export default function AlertsScreen() {
     rucs, tributos, tributosBase, addTributoToRuc,
   } = useApp()
 
+  const { hoy, hoyISO, proxISO, cuadroHoy, cuadroProx } = useVencimientosHoy(pushLog)
+
   const [pickerOpen, setPickerOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const searchRef = useRef(null)
-  function handleFocusSearch() {
-    setTimeout(() => searchRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
-  }
   const [rucElegido, setRucElegido] = useState(null)
   const [editingItem, setEditingItem] = useState(null)
   const [toast, setToast] = useState('')
   const [mostrarActivos, setMostrarActivos] = useState(true)
   const [mostrarInactivos, setMostrarInactivos] = useState(false)
+  const searchRef = useRef(null)
+
+  function handleFocusSearch() {
+    setTimeout(() => searchRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+  }
 
   const activos = todosLosRecordatorios.filter((r) => r.recordar)
   const inactivos = todosLosRecordatorios.filter((r) => !r.recordar)
+  const recordatoriosHoy = activos.filter((r) => r.fecha === hoyISO)
+  const recordatoriosProx = activos.filter((r) => r.fecha === proxISO)
 
   const rucsFiltrados = rucs.filter(
     (r) => r.ruc.includes(search) || r.razonSocial.toLowerCase().includes(search.toLowerCase())
@@ -88,8 +94,44 @@ export default function AlertsScreen() {
   }
 
   return (
-    <div className="relative flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
+    <div className="relative flex-1 overflow-y-auto px-4 md:px-8 pt-4 pb-[130px] md:pb-8">
       <Toast message={toast} onDone={() => setToast('')} />
+
+      <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-2.5">
+        <div className="font-bold text-[12.5px] mb-1 text-rojo-sunat">🔴 Vence hoy — {hoy.toLocaleDateString('es-PE')}</div>
+        {cuadroHoy.length === 0 ? (
+          <div className="text-[10.5px] text-muted">Nada vence hoy.</div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {cuadroHoy.map((c) => (
+              <span key={c.tipo} className="text-[10.5px] font-semibold bg-[#FCE9EB] text-rojo-sunat px-2.5 py-1 rounded-full">
+                {c.tipo}{c.digitos.length ? ` · ${c.digitos.join(', ')}` : ''}
+              </span>
+            ))}
+          </div>
+        )}
+        {recordatoriosHoy.length > 0 && (
+          <div className="text-[10.5px] font-semibold text-rojo-sunat mt-1.5">＋ {recordatoriosHoy.length} recordatorio(s) creados para hoy</div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3.5 mb-4">
+        <div className="font-bold text-[12.5px] mb-1" style={{ color: '#D9A404' }}>🟡 Próximo día hábil</div>
+        {cuadroProx.length === 0 ? (
+          <div className="text-[10.5px] text-muted">Nada por vencer.</div>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {cuadroProx.map((c) => (
+              <span key={c.tipo} className="text-[10.5px] font-semibold bg-[#FBF1DD] text-[#8A6A00] px-2.5 py-1 rounded-full">
+                {c.tipo}{c.digitos.length ? ` · ${c.digitos.join(', ')}` : ''}
+              </span>
+            ))}
+          </div>
+        )}
+        {recordatoriosProx.length > 0 && (
+          <div className="text-[10.5px] font-semibold mt-1.5" style={{ color: '#8A6A00' }}>＋ {recordatoriosProx.length} recordatorio(s) creados</div>
+        )}
+      </div>
 
       <div className="bg-[#EAF1FA] text-azul-inst text-[10.5px] rounded-xl px-3 py-2.5 mb-3.5 leading-relaxed">
         💡 Desliza una tarjeta a los lados para eliminarla, o mantenla presionada para activar/desactivar el recordatorio.
