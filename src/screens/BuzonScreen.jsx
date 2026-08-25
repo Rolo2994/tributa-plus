@@ -28,13 +28,20 @@ export default function BuzonScreen() {
 
   useEffect(() => { cargar() }, [fecha]) // eslint-disable-line
 
+  function armarTexto(archivo) {
+    const fechaHora = [archivo.fecha, archivo.hora].filter(Boolean).join(' ')
+    const partes = [fechaHora, archivo.razon].filter(Boolean)
+    return partes.join(' | ')
+  }
+
   async function verOEnviar(archivo) {
     setEnviando(archivo.id)
     try {
       const blob = await obtenerPdfBlob(archivo.id)
       const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
+      const texto = armarTexto(archivo)
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: archivo.nombre })
+        await navigator.share({ files: [file], title: archivo.nombre, text: texto })
       } else {
         const url = URL.createObjectURL(blob)
         window.open(url, '_blank')
@@ -77,6 +84,9 @@ export default function BuzonScreen() {
           <div key={a.id} className="flex gap-2.5 items-center bg-white rounded-xl border border-[#F0F3F7] p-3 mb-2">
             <div className="flex-1 min-w-0">
               <div className="text-[12px] font-semibold truncate">{a.nombre}</div>
+              {(a.fecha || a.razon) && (
+                <div className="text-[10.5px] text-muted truncate">{armarTexto(a)}</div>
+              )}
             </div>
             <button
               onClick={() => verOEnviar(a)}
