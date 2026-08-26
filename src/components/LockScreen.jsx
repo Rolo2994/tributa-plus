@@ -17,10 +17,20 @@ function usePinLogic(onUnlock) {
   }, [])
 
   function pressDigit(n) {
-    if (pin.length >= 4) return
-    const next = pin + n
-    setPin(next)
-    if (next.length === 4) setTimeout(() => { onUnlock(); setPin('') }, 150)
+     if (pin.length >= 4) return
+     const next = pin + n
+     setPin(next)
+     if (next.length === 4) {
+       setTimeout(async () => {
+           const ok = await verificarPin(next)
+           if (ok) {
+             onUnlock()
+           } else {
+             setBioError('PIN incorrecto. Intenta de nuevo.')
+           }
+           setPin('')
+       }, 150)
+     }
   }
 
   async function handleBiometric() {

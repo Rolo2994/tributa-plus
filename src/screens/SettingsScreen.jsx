@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import { clearBiometric, hasRegisteredCredential } from '../hooks/useWebAuthn.js'
+import PinSetupModal from '../components/PinSetupModal.jsx'
+import { tienePinConfigurado } from '../hooks/usePinAuth.js'
 
 export default function SettingsScreen() {
-  // Se agregó notifPermission y requestNotifPermission a la desestructuración de useApp()
   const { 
     groupFilter, 
     setGroupFilter, 
@@ -18,13 +19,16 @@ export default function SettingsScreen() {
   } = useApp()
   
   const [bioOn, setBioOn] = useState(hasRegisteredCredential())
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const [pinConfigurado, setPinConfigurado] = useState(tienePinConfigurado())
+
   const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
       <h2 className="font-bold text-[14px] mb-2.5">Filtros de la lista de RUCs</h2>
 
-      {/* Bloque de Grupos protegido */}
+      {/* Bloque de Grupos */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-2">Grupo</div>
         <div className="flex flex-wrap gap-1.5">
@@ -60,7 +64,21 @@ export default function SettingsScreen() {
         </div>
       </div>
 
-      {/* Nuevo Bloque de Notificaciones */}
+      {/* Bloque de Seguridad (PIN) */}
+      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
+        <div className="font-bold text-[12.5px] mb-1">Seguridad</div>
+        <div className="flex items-center justify-between py-2.5 border-t border-[#F1F4F8] mt-1">
+          <div>
+            <b className="block text-[12px]">{pinConfigurado ? 'Cambiar mi PIN' : 'Configurar mi PIN'}</b>
+            <span className="text-[10.5px] text-muted">{pinConfigurado ? 'Ya tienes un PIN configurado' : 'Aún no configuraste un PIN — cualquier código desbloquea'}</span>
+          </div>
+          <button onClick={() => setPinModalOpen(true)} className="text-[11px] font-semibold text-azul-inst bg-[#EAF1FA] px-3 py-2 rounded-lg flex-shrink-0">
+            {pinConfigurado ? 'Cambiar' : 'Configurar'}
+          </button>
+        </div>
+      </div>
+
+      {/* Bloque de Notificaciones */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-1">Notificaciones</div>
         <div className="text-[10.5px] text-muted mb-2.5">
@@ -78,6 +96,7 @@ export default function SettingsScreen() {
         )}
       </div>
 
+      {/* Bloque de Sincronización */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-1">Sincronización</div>
         <div className="text-[10.5px] text-muted mb-2.5">
@@ -91,6 +110,8 @@ export default function SettingsScreen() {
           {syncing ? 'Sincronizando…' : '🔄 Sincronizar ahora'}
         </button>
       </div>
+
+      <PinSetupModal open={pinModalOpen} onClose={() => setPinModalOpen(false)} onSaved={() => setPinConfigurado(true)} />
     </div>
   )
 }
