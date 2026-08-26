@@ -53,7 +53,7 @@ export default function BuzonScreen() {
     const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
     const texto = armarTexto(archivo)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], title: archivo.nombre, text: texto })
+      await navigator.share({ files: [file], text: texto })
     } else {
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
