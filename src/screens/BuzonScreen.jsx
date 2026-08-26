@@ -4,10 +4,15 @@ import { listarPdfs, obtenerPdfBlob } from '../services/buzonApi.js'
 
 export default function BuzonScreen() {
   const { goScreen, pushLog } = useApp()
-  const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10))
+  const [fecha, setFecha] = useState(() => {
+    const ahora = new Date()
+    const peru = new Date(ahora.getTime() - 5 * 60 * 60 * 1000) // Peru = UTC-5
+    return peru.toISOString().slice(0, 10)
+  })
   const [archivos, setArchivos] = useState([])
   const [cargando, setCargando] = useState(false)
-  const [enviando, setEnviando] = useState(null)
+  const [enviando, setEnviando] = useState(false)
+  const [seleccionados, setSeleccionados] = useState(new Set())
 
   async function cargar() {
     setCargando(true)
@@ -26,7 +31,15 @@ export default function BuzonScreen() {
     }
   }
 
-  useEffect(() => { cargar() }, [fecha]) // eslint-disable-line
+  useEffect(() => { cargar(); setSeleccionados(new Set()) }, [fecha]) // eslint-disable-line
+
+  function toggle(id) {
+    setSeleccionados((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   function armarTexto(archivo) {
     const fechaHora = [archivo.fecha, archivo.hora].filter(Boolean).join(' ')
@@ -34,23 +47,41 @@ export default function BuzonScreen() {
     return partes.join(' | ')
   }
 
+  async function enviarUno(archivo) {
+    const blob = await obtenerPdfBlob(archivo.id)
+    const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
+    const texto = armarTexto(archivo)
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: archivo.nombre, text: texto })
+    } else {
+      const url = URL.createObjectURL(blob)
+      window.open(url, '_blank')
+    }
+  }
+
   async function verOEnviar(archivo) {
-    setEnviando(archivo.id)
+    setEnviando(true)
     try {
-      const blob = await obtenerPdfBlob(archivo.id)
-      const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
-      const texto = armarTexto(archivo)
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: archivo.nombre, text: texto })
-      } else {
-        const url = URL.createObjectURL(blob)
-        window.open(url, '_blank')
-      }
+      await enviarUno(archivo)
     } catch (err) {
       pushLog(`✗ No se pudo abrir/compartir: ${err?.message || err}`)
     } finally {
-      setEnviando(null)
+      setEnviando(false)
     }
+  }
+
+  async function enviarSeleccionados() {
+    if (seleccionados.size === 0) return
+    setEnviando(true)
+    const lista = archivos.filter((a) => seleccionados.has(a.id))
+    for (const archivo of lista) {
+      try {
+        await enviarUno(archivo)
+      } catch (err) {
+        pushLog(`✗ No se pudo enviar "${archivo.nombre}": ${err?.message || err}`)
+      }
+    }
+    setEnviando(false)
   }
 
   return (
@@ -64,16 +95,24 @@ export default function BuzonScreen() {
         <div className="font-display font-bold text-[15px]">Buzón PDF</div>
       </div>
 
-      <div className="px-4 pt-1 pb-2">
+      <div className="px-4 pt-1 pb-2 flex items-center gap-2">
         <input
           type="date"
           value={fecha}
           onChange={(e) => setFecha(e.target.value)}
-          className="w-full text-[12.5px] px-3 py-2 rounded-xl border border-bordersoft"
+          className="flex-1 text-[12.5px] px-3 py-2 rounded-xl border border-bordersoft"
         />
+        {archivos.length > 0 && (
+          <button
+            onClick={() => setSeleccionados(seleccionados.size === archivos.length ? new Set() : new Set(archivos.map((a) => a.id)))}
+            className="text-[11px] font-semibold text-azul-inst whitespace-nowrap"
+          >
+            {seleccionados.size === archivos.length ? 'Ninguno' : 'Todos'}
+          </button>
+        )}
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-[40px]">
+      <div className="flex-1 overflow-y-auto px-4 pt-2 pb-[90px]">
         {cargando && <div className="text-center text-muted text-[12px] py-10">Cargando…</div>}
 
         {!cargando && archivos.length === 0 && (
@@ -82,6 +121,14 @@ export default function BuzonScreen() {
 
         {!cargando && archivos.map((a) => (
           <div key={a.id} className="flex gap-2.5 items-center bg-white rounded-xl border border-[#F0F3F7] p-3 mb-2">
+            <button
+              onClick={() => toggle(a.id)}
+              className={`w-[19px] h-[19px] rounded-md border-[1.6px] flex-shrink-0 flex items-center justify-center text-[12px] ${
+                seleccionados.has(a.id) ? 'bg-azul-inst border-azul-inst text-white' : 'border-[#C9D6E4]'
+              }`}
+            >
+              {seleccionados.has(a.id) ? '✓' : ''}
+            </button>
             <div className="flex-1 min-w-0">
               <div className="text-[12px] font-semibold truncate">{a.nombre}</div>
               {(a.fecha || a.razon) && (
@@ -90,14 +137,27 @@ export default function BuzonScreen() {
             </div>
             <button
               onClick={() => verOEnviar(a)}
-              disabled={enviando === a.id}
+              disabled={enviando}
               className="flex items-center gap-1.5 bg-[#25D366] disabled:opacity-60 text-white text-[11px] font-bold px-3 py-2 rounded-[10px] flex-shrink-0"
             >
-              {enviando === a.id ? '…' : 'Ver / Enviar'}
+              Ver / Enviar
             </button>
           </div>
         ))}
       </div>
+
+      {seleccionados.size > 0 && (
+        <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15] bg-azul-dark rounded-2xl px-4 py-3 flex items-center justify-between shadow-float">
+          <span className="text-white text-[12px] font-semibold">{seleccionados.size} seleccionado(s)</span>
+          <button
+            onClick={enviarSeleccionados}
+            disabled={enviando}
+            className="bg-[#25D366] disabled:opacity-60 text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px]"
+          >
+            {enviando ? 'Enviando…' : 'Enviar todos'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -24,6 +24,10 @@ export default function BuzonEjecutarScreen() {
   }
 
   async function ejecutar() {
+    if (!fechaDesde) {
+      pushLog('⚠ Selecciona la fecha desde la que quieres buscar.')
+      return
+    }
     if (modo === 'rucs' && selected.size === 0) {
       pushLog('⚠ Selecciona al menos un RUC.')
       return
