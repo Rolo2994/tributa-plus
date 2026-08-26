@@ -13,6 +13,7 @@ export default function BuzonScreen() {
   const [cargando, setCargando] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [seleccionados, setSeleccionados] = useState(new Set())
+  const [colaEnvio, setColaEnvio] = useState([])
 
   async function cargar() {
     setCargando(true)
@@ -70,18 +71,24 @@ export default function BuzonScreen() {
     }
   }
 
-  async function enviarSeleccionados() {
-    if (seleccionados.size === 0) return
-    setEnviando(true)
-    const lista = archivos.filter((a) => seleccionados.has(a.id))
-    for (const archivo of lista) {
+  function iniciarEnvioSeleccionados() {
+     if (seleccionados.size === 0) return
+     const lista = archivos.filter((a) => seleccionados.has(a.id))
+     setColaEnvio(lista)
+  }
+
+  async function enviarSiguienteDeLaCola() {
+      if (colaEnvio.length === 0) return
+      const [actual, ...resto] = colaEnvio
+      setEnviando(true)
       try {
-        await enviarUno(archivo)
+        await enviarUno(actual)
       } catch (err) {
-        pushLog(`✗ No se pudo enviar "${archivo.nombre}": ${err?.message || err}`)
+        pushLog(`✗ No se pudo enviar "${actual.nombre}": ${err?.message || err}`)
+      } finally {
+        setEnviando(false)
+        setColaEnvio(resto)
       }
-    }
-    setEnviando(false)
   }
 
   return (
@@ -146,16 +153,28 @@ export default function BuzonScreen() {
         ))}
       </div>
 
-      {seleccionados.size > 0 && (
+      {colaEnvio.length > 0 ? (
+         <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15] bg-azul-dark rounded-2xl px-4 py-3 flex items-center justify-between shadow-float">
+             <span className="text-white text-[11.5px] font-semibold truncate mr-2">
+                  Falta{colaEnvio.length > 1 ? 'n' : ''} {colaEnvio.length}: {colaEnvio[0].nombre.slice(0, 30)}…
+             </span>
+             <button
+                 onClick={enviarSiguienteDeLaCola}
+                 disabled={enviando}
+                 className="bg-[#25D366] disabled:opacity-60 text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px] flex-shrink-0"
+             >
+                 {enviando ? '…' : 'Enviar este'}
+             </button>
+         </div>
+      ) : seleccionados.size > 0 && (
         <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15] bg-azul-dark rounded-2xl px-4 py-3 flex items-center justify-between shadow-float">
-          <span className="text-white text-[12px] font-semibold">{seleccionados.size} seleccionado(s)</span>
-          <button
-            onClick={enviarSeleccionados}
-            disabled={enviando}
-            className="bg-[#25D366] disabled:opacity-60 text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px]"
-          >
-            {enviando ? 'Enviando…' : 'Enviar todos'}
-          </button>
+            <span className="text-white text-[12px] font-semibold">{seleccionados.size} seleccionado(s)</span>
+            <button
+                onClick={iniciarEnvioSeleccionados}
+                className="bg-[#25D366] text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px]"
+            >
+                Empezar a enviar
+            </button>
         </div>
       )}
     </div>
