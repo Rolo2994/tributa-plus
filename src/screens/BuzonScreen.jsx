@@ -20,7 +20,12 @@ export default function BuzonScreen() {
     try {
       const res = await listarPdfs(fecha)
       if (res.ok) {
-        setArchivos(res.archivos)
+        const ordenados = [...res.archivos].sort((a, b) => {
+            const claveA = `${a.fecha?.split('/').reverse().join('-') || ''} ${a.hora || ''}`
+            const claveB = `${b.fecha?.split('/').reverse().join('-') || ''} ${b.hora || ''}`
+            return claveB.localeCompare(claveA) // orden descendente: mas reciente primero
+        })
+        setArchivos(ordenados)
       } else {
         pushLog(`✗ ${res.error}`)
         setArchivos([])
