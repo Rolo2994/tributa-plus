@@ -1,10 +1,13 @@
-import { useState } from 'react'
-
 const STORAGE_KEY = 'tributaplus_pin_hash'
 
-// Hash simple (SHA-256 vía Web Crypto, disponible en cualquier navegador
-// moderno) — el PIN nunca se guarda en texto plano, ni siquiera localmente.
+function cryptoDisponible() {
+  return typeof crypto !== 'undefined' && crypto.subtle
+}
+
 async function hashPin(pin) {
+  if (!cryptoDisponible()) {
+    throw new Error('Esta función necesita una conexión segura (HTTPS). Ábrela desde tributa-plus.vercel.app, no desde una IP local.')
+  }
   const data = new TextEncoder().encode(pin)
   const buffer = await crypto.subtle.digest('SHA-256', data)
   return Array.from(new Uint8Array(buffer)).map((b) => b.toString(16).padStart(2, '0')).join('')

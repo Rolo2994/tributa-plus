@@ -22,13 +22,18 @@ function usePinLogic(onUnlock) {
      setPin(next)
      if (next.length === 4) {
        setTimeout(async () => {
-           const ok = await verificarPin(next)
-           if (ok) {
-             onUnlock()
-           } else {
-             setBioError('PIN incorrecto. Intenta de nuevo.')
+           try {
+             const ok = await verificarPin(next)
+             if (ok) {
+               onUnlock()
+             } else {
+               setBioError('PIN incorrecto. Intenta de nuevo.')
+             }
+           } catch (err) {
+             setBioError(err.message || 'No se pudo verificar el PIN.')
+           } finally {
+             setPin('')
            }
-           setPin('')
        }, 150)
      }
   }

@@ -28,9 +28,14 @@ export default function PinSetupModal({ open, onClose, onSaved }) {
       if (next.length === 4) {
         setTimeout(async () => {
           if (next === pin1) {
-            await configurarPin(next)
-            onSaved && onSaved()
-            cerrar()
+            try {
+              await configurarPin(next)
+              onSaved && onSaved()
+              cerrar()
+            } catch (err) {
+              setError('Error al guardar el PIN. Intenta de nuevo.')
+              setPin1(''); setPin2(''); setPaso('nuevo')
+            }
           } else {
             setError('Los PIN no coinciden. Intenta de nuevo.')
             setPin1(''); setPin2(''); setPaso('nuevo')
