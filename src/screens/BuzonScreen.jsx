@@ -54,11 +54,18 @@ export default function BuzonScreen() {
   }
 
   async function enviarUno(archivo) {
+    const texto = armarTexto(archivo)
+    try {
+      await navigator.clipboard.writeText(texto)
+      pushLog('📋 Texto copiado — pégalo en el mensaje de WhatsApp')
+    } catch (err) {
+      pushLog(`✗ No se pudo copiar el texto: ${err?.message || err}`)
+    }
+
     const blob = await obtenerPdfBlob(archivo.id)
     const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
-    const texto = armarTexto(archivo)
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({ files: [file], text: texto })
+      await navigator.share({ files: [file] })
     } else {
       const url = URL.createObjectURL(blob)
       window.open(url, '_blank')
