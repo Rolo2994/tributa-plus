@@ -25,10 +25,24 @@
  * servidor (Code.gs) igual se lee y parsea como JSON normal.
  */
 
-const BASE_URL = import.meta.env.VITE_SHEETS_API_URL || ''
+const STORAGE_KEY_URL = 'tributaplus_sheets_url'
+
+function getBaseUrl() {
+  const propia = localStorage.getItem(STORAGE_KEY_URL)
+  return (propia && propia.trim()) || import.meta.env.VITE_SHEETS_API_URL || ''
+}
+
+export function getConfiguredSheetsUrl() {
+  return localStorage.getItem(STORAGE_KEY_URL) || ''
+}
+
+export function setConfiguredSheetsUrl(url) {
+  if (url && url.trim()) localStorage.setItem(STORAGE_KEY_URL, url.trim())
+  else localStorage.removeItem(STORAGE_KEY_URL)
+}
 
 async function callApi(action, params = {}, method = 'GET') {
-  if (!BASE_URL) {
+  if (!getBaseUrl()) {
     throw new Error(
       'VITE_SHEETS_API_URL no está configurado en .env — todavía estás en modo mock.'
     )
@@ -36,13 +50,13 @@ async function callApi(action, params = {}, method = 'GET') {
 
   if (method === 'GET') {
     const query = new URLSearchParams({ action, ...params, _t: Date.now() }).toString()
-    const res = await fetch(`${BASE_URL}?${query}`, { redirect: 'follow', cache: 'no-store' })
+    const res = await fetch(`${getBaseUrl()}?${query}`, { redirect: 'follow', cache: 'no-store' })
     if (!res.ok) throw new Error(`Error ${res.status} al llamar a Google Sheets`)
     return res.json()
   }
 
   // POST: text/plain evita el preflight CORS (ver nota arriba)
-  const res = await fetch(BASE_URL, {
+  const res = await fetch(getBaseUrl(), {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action, ...params }),

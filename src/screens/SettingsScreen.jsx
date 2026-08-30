@@ -1,8 +1,7 @@
-import React, { useState } from 'react'
+import React from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { clearBiometric, hasRegisteredCredential } from '../hooks/useWebAuthn.js'
-import PinSetupModal from '../components/PinSetupModal.jsx'
-import { tienePinConfigurado } from '../hooks/usePinAuth.js'
+import PinSecurityCard from '../components/PinSecurityCard.jsx'
+import DataSourceCard from '../components/DataSourceCard.jsx'
 
 export default function SettingsScreen() {
   const { 
@@ -14,13 +13,7 @@ export default function SettingsScreen() {
     availableGroups,
     notifPermission, 
     requestNotifPermission,
-    sincronizarDatos, 
-    syncing,
   } = useApp()
-  
-  const [bioOn, setBioOn] = useState(hasRegisteredCredential())
-  const [pinModalOpen, setPinModalOpen] = useState(false)
-  const [pinConfigurado, setPinConfigurado] = useState(tienePinConfigurado())
 
   const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
 
@@ -64,19 +57,11 @@ export default function SettingsScreen() {
         </div>
       </div>
 
-      {/* Bloque de Seguridad (PIN) */}
-      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
-        <div className="font-bold text-[12.5px] mb-1">Seguridad</div>
-        <div className="flex items-center justify-between py-2.5 border-t border-[#F1F4F8] mt-1">
-          <div>
-            <b className="block text-[12px]">{pinConfigurado ? 'Cambiar mi PIN' : 'Configurar mi PIN'}</b>
-            <span className="text-[10.5px] text-muted">{pinConfigurado ? 'Ya tienes un PIN configurado' : 'Aún no configuraste un PIN — cualquier código desbloquea'}</span>
-          </div>
-          <button onClick={() => setPinModalOpen(true)} className="text-[11px] font-semibold text-azul-inst bg-[#EAF1FA] px-3 py-2 rounded-lg flex-shrink-0">
-            {pinConfigurado ? 'Cambiar' : 'Configurar'}
-          </button>
-        </div>
-      </div>
+      {/* Bloque de Seguridad */}
+      <PinSecurityCard />
+
+      {/* Bloque de Base de datos / Sincronización */}
+      <DataSourceCard />
 
       {/* Bloque de Notificaciones */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
@@ -95,23 +80,6 @@ export default function SettingsScreen() {
           </button>
         )}
       </div>
-
-      {/* Bloque de Sincronización */}
-      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
-        <div className="font-bold text-[12.5px] mb-1">Sincronización</div>
-        <div className="text-[10.5px] text-muted mb-2.5">
-          Trae los datos más recientes de Google Sheets (RUCs, tributos y notas de todos los dispositivos).
-        </div>
-        <button
-          onClick={sincronizarDatos}
-          disabled={syncing}
-          className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px] disabled:opacity-50"
-        >
-          {syncing ? 'Sincronizando…' : '🔄 Sincronizar ahora'}
-        </button>
-      </div>
-
-      <PinSetupModal open={pinModalOpen} onClose={() => setPinModalOpen(false)} onSaved={() => setPinConfigurado(true)} />
     </div>
   )
 }

@@ -5,6 +5,7 @@ import {
   isWebAuthnSupported,
   registerBiometric,
 } from '../hooks/useWebAuthn.js'
+import { verificarPin } from '../hooks/usePinAuth.js'
 
 function usePinLogic(onUnlock) {
   const [pin, setPin] = useState('')
