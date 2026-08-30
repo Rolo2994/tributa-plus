@@ -31,3 +31,11 @@ export async function obtenerPdfBlob(fileId) {
   if (!res.ok) throw new Error('No se pudo obtener el PDF')
   return res.blob()
 }
+
+export async function eliminarPdf(fileId) {
+  const res = await fetch(`${BASE_URL}/pdfs/${fileId}`, {
+    method: 'DELETE',
+    headers: { 'X-API-KEY': API_KEY },
+  })
+  return res.json()
+}

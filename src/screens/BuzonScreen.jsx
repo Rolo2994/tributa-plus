@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { listarPdfs, obtenerPdfBlob } from '../services/buzonApi.js'
+import { listarPdfs, obtenerPdfBlob, eliminarPdf } from '../services/buzonApi.js'
 
 export default function BuzonScreen() {
   const { goScreen, pushLog } = useApp()
@@ -103,6 +103,42 @@ export default function BuzonScreen() {
       }
   }
 
+  async function borrarUno(archivo) {
+    const confirmar = window.confirm(`¿Eliminar "${archivo.nombre}"? Esto lo borra también de Drive, no se puede deshacer.`)
+    if (!confirmar) return
+    try {
+      const res = await eliminarPdf(archivo.id)
+      if (res.ok) {
+        setArchivos((prev) => prev.filter((a) => a.id !== archivo.id))
+        pushLog(`🗑 Eliminado: ${archivo.nombre}`)
+      } else {
+        pushLog(`✗ No se pudo eliminar: ${res.error}`)
+      }
+    } catch (err) {
+      pushLog(`✗ Error al eliminar: ${err?.message || err}`)
+    }
+  }
+
+  async function borrarSeleccionados() {
+    const lista = archivos.filter((a) => seleccionados.has(a.id))
+    const confirmar = window.confirm(`¿Eliminar ${lista.length} PDF(s) seleccionados? Esto los borra también de Drive, no se puede deshacer.`)
+    if (!confirmar) return
+    for (const archivo of lista) {
+      try {
+        const res = await eliminarPdf(archivo.id)
+        if (res.ok) {
+          setArchivos((prev) => prev.filter((a) => a.id !== archivo.id))
+        } else {
+          pushLog(`✗ No se pudo eliminar "${archivo.nombre}": ${res.error}`)
+        }
+      } catch (err) {
+        pushLog(`✗ Error al eliminar "${archivo.nombre}": ${err?.message || err}`)
+      }
+    }
+    setSeleccionados(new Set())
+    pushLog(`🗑 ${lista.length} PDF(s) eliminados`)
+  }
+
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
       <div className="flex items-center gap-2.5 px-4 pt-3.5 pb-1.5">
@@ -161,6 +197,13 @@ export default function BuzonScreen() {
             >
               Ver / Enviar
             </button>
+            <button
+              onClick={() => borrarUno(a)}
+              className="flex items-center justify-center bg-[#FCE9EB] text-rojo-sunat w-9 h-9 rounded-[10px] flex-shrink-0"
+              title="Eliminar"
+            >
+              🗑
+            </button>
           </div>
         ))}
       </div>
@@ -179,14 +222,22 @@ export default function BuzonScreen() {
              </button>
          </div>
       ) : seleccionados.size > 0 && (
-        <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15] bg-azul-dark rounded-2xl px-4 py-3 flex items-center justify-between shadow-float">
+        <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15] bg-azul-dark rounded-2xl px-4 py-3 flex items-center justify-between gap-2 shadow-float">
             <span className="text-white text-[12px] font-semibold">{seleccionados.size} seleccionado(s)</span>
-            <button
-                onClick={iniciarEnvioSeleccionados}
-                className="bg-[#25D366] text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px]"
-            >
-                Empezar a enviar
-            </button>
+            <div className="flex gap-2">
+              <button
+                  onClick={borrarSeleccionados}
+                  className="bg-rojo-sunat text-white text-[12px] font-bold px-3 py-2.5 rounded-[10px]"
+              >
+                  Eliminar
+              </button>
+              <button
+                  onClick={iniciarEnvioSeleccionados}
+                  className="bg-[#25D366] text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px]"
+              >
+                  Empezar a enviar
+              </button>
+            </div>
         </div>
       )}
     </div>
