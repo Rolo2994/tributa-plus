@@ -61,7 +61,7 @@ export function useReminders(rucs) {
 
         const [h, m] = t.hora.split(':').map(Number)
         const horaTributo = h * 60 + m
-        if (horaActual >= horaTributo && horaActual - horaTributo <= 120) {
+        if (horaActual >= horaTributo) {
           // La clave incluye la fecha DE HOY (no la fecha de inicio) para que
           // un recordatorio recurrente vuelva a notificar en cada ocurrencia.
           const key = `${rucId}-${t.id}-${hoyStr}-${t.hora}`
