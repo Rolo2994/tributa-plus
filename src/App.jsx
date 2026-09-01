@@ -25,14 +25,14 @@ import SettingsScreen from './screens/SettingsScreen.jsx'
 const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, dashboard: DashboardScreen,
   buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen, 'buzon-ejecutar': BuzonEjecutarScreen,
-  sire: SireScreen, settings: SettingsScreen,
+  sire: SireScreen, settings: SettingsScreen, 
 }
-const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'buzon-ejecutar'])
+const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'buzon-ejecutar', 'ajustes-workspace'])
 
 const TITULOS = {
   home: 'RUCs', alerts: 'Alertas', inicio: 'Vencimientos', dashboard: 'Dashboard tributario',
   buzon: 'Buzón PDF', validez: 'Validez CP', detracc: 'Detracciones', sire: 'SIRE', settings: 'Ajustes',
-  'buzon-ejecutar': 'Ejecutar Buzón PDF',
+  'buzon-ejecutar': 'Ejecutar Buzón PDF', 'ajustes-workspace': 'Ajustes de tu cuenta',
 }
 
 export default function App() {

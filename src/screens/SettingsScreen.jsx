@@ -2,6 +2,7 @@ import React from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import PinSecurityCard from '../components/PinSecurityCard.jsx'
 import DataSourceCard from '../components/DataSourceCard.jsx'
+import WorkspaceCard from '../components/WorkspaceCard.jsx'
 
 export default function SettingsScreen() {
   const { 
@@ -62,6 +63,9 @@ export default function SettingsScreen() {
 
       {/* Bloque de Base de datos / Sincronización */}
       <DataSourceCard />
+
+      {/* Bloque de configuracion de BuzonPDF (Sheet propio + Drive propio) */}
+      <WorkspaceCard />
 
       {/* Bloque de Notificaciones */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
