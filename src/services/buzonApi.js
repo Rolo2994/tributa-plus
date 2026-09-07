@@ -90,3 +90,21 @@ export async function guardarNombreCarpeta(wsId, nombre) {
 export function urlConectarDrive(wsId) {
   return `${BASE_URL}/oauth/iniciar?ws=${wsId}`
 }
+
+export async function registrarCuenta(correo, clave) {
+  const res = await fetch(`${BASE_URL}/cuenta/registrar`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
+    body: JSON.stringify({ correo, clave }),
+  })
+  return res.json()
+}
+
+export async function iniciarSesion(correo, clave) {
+  const res = await fetch(`${BASE_URL}/cuenta/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
+    body: JSON.stringify({ correo, clave }),
+  })
+  return res.json()
+}

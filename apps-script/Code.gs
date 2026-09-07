@@ -27,6 +27,14 @@
  *
  * Hoja "Log" (la crea este script automáticamente si no existe):
  *   A=Fecha/Hora  B=RUC  C=Mensaje
+ *
+ * ── upsertRows (usada por el servidor de BuzonPDF, no borrar) ──
+ * Acción POST que sube/actualiza filas en cualquier pestaña, por
+ * lotes (usada para "BuzonPDF Notificaciones" y "BuzonPDF Mensajes",
+ * y también para "Declaraciones"/"Pendientes" si las usas). Si la
+ * pestaña no existe la crea sola; si el mismo valor de la columna
+ * clave (por defecto "CODIGO") ya existía, se reemplaza por la fila
+ * nueva. Nunca toca ninguna otra pestaña del archivo.
  */
 
 const HOJA_RUCS = 'RUCs'
@@ -75,6 +83,8 @@ function doPost(e) {
       data = saveNotas_(body.ruc, body.notas)
     } else if (action === 'logActivity') {
       data = logActivity_(body.ruc, body.mensaje)
+    } else if (action === 'upsertRows') {
+      data = upsertRows_(body.hoja, body.encabezados, body.filas, body.claveColumna)
     } else {
       throw new Error('Acción POST no reconocida: ' + action)
     }
@@ -124,8 +134,6 @@ function listTaxStatus_() {
   const values = sheet.getDataRange().getValues()
   const headers = values[0]
   const idxSaldo = headers.indexOf('SALDO PENDIENTE')
-  // Solo se envían las filas con deuda real pendiente — reduce el peso
-  // de la respuesta y evita mandar filas ya pagadas o sin pendiente.
   const rows = values.slice(1).filter((r) => r[0] && Number(r[idxSaldo] || 0) > 0)
   return rows.map((r) => {
     const obj = {}
@@ -137,7 +145,6 @@ function listTaxStatus_() {
 // ── Lectura de cronogramas de vencimiento (sire / dj mensual / dj anual) ──
 const MESES_ABBR_ = { ene:1, feb:2, mar:3, abr:4, may:5, jun:6, jul:7, ago:8, sep:9, oct:10, nov:11, dic:12 }
 
-/** Convierte el texto TAL COMO SE VE en la celda (ej "17-ago-26") a "yyyy-MM-dd", sin pasar por objetos Date. */
 function parseFechaDisplay_(texto) {
   const s = String(texto || '').trim().toLowerCase()
   const m1 = s.match(/^(\d{1,2})-([a-záéíóú]{3})-(\d{2,4})$/)
@@ -155,7 +162,7 @@ function parseFechaDisplay_(texto) {
     if (anio.length === 2) anio = '20' + anio
     return `${anio}-${m2[2].padStart(2, '0')}-${m2[1].padStart(2, '0')}`
   }
-  return texto // no es fecha (ej. "*TABA SIRE") — se devuelve tal cual
+  return texto
 }
 
 function getVencimientos_(tipo, mes, anio) {
@@ -164,8 +171,6 @@ function getVencimientos_(tipo, mes, anio) {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(nombreHoja)
   if (!sheet) throw new Error('No se encontró la hoja "' + nombreHoja + '"')
 
-  // getDisplayValues() trae el texto EXACTO que se ve en pantalla —
-  // sin convertir nada a objetos de fecha, así no hay riesgo de desfase.
   const values = sheet.getDataRange().getDisplayValues()
   const headers = values[0]
   const mesBuscado = String(mes || '').toUpperCase()
@@ -231,7 +236,6 @@ function listNotas_() {
     if (!ruc) return
     try {
       let parsed = JSON.parse(r[1])
-      // Si quedó guardado doblemente codificado (bug anterior), lo desenreda.
       if (typeof parsed === 'string') {
         parsed = JSON.parse(parsed)
       }
@@ -254,4 +258,79 @@ function logActivity_(ruc, mensaje) {
   const ahora = Utilities.formatDate(new Date(), 'GMT-5', 'dd/MM/yyyy HH:mm:ss')
   sheet.appendRow([ahora, ruc, mensaje])
   return { logged: true }
+}
+
+// ── Sube/actualiza filas en cualquier pestaña (usada por BuzonPDF) ──
+function upsertRows_(nombreHoja, encabezadosNuevos, filasNuevas, claveColumna) {
+  if (!nombreHoja) throw new Error('Falta el nombre de la hoja destino (hoja).')
+  if (!claveColumna) throw new Error('Falta la columna clave (claveColumna).')
+  if (!encabezadosNuevos || !encabezadosNuevos.length) throw new Error('Faltan los encabezados.')
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet()
+  let sheet = ss.getSheetByName(nombreHoja)
+
+  let encabezadosActuales = []
+  let filasActuales = []
+
+  if (!sheet) {
+    sheet = ss.insertSheet(nombreHoja)
+    encabezadosActuales = encabezadosNuevos.slice()
+  } else {
+    const values = sheet.getDataRange().getValues()
+    if (values.length > 0) {
+      encabezadosActuales = values[0].map((h) => String(h).trim())
+      filasActuales = values.slice(1)
+    } else {
+      encabezadosActuales = encabezadosNuevos.slice()
+    }
+  }
+
+  const encabezadosFinal = encabezadosActuales.slice()
+  encabezadosNuevos.forEach((h) => {
+    if (encabezadosFinal.indexOf(h) === -1) encabezadosFinal.push(h)
+  })
+
+  const idxClave = encabezadosFinal.indexOf(claveColumna)
+  if (idxClave === -1) {
+    throw new Error('La columna clave "' + claveColumna + '" no esta en los encabezados.')
+  }
+
+  const mapa = {}
+  const ordenClaves = []
+
+  filasActuales.forEach((filaVieja) => {
+    const filaAlineada = encabezadosFinal.map((h) => {
+      const i = encabezadosActuales.indexOf(h)
+      return i === -1 ? '' : filaVieja[i]
+    })
+    const clave = String(filaAlineada[idxClave]).trim()
+    if (!clave) return
+    if (!(clave in mapa)) ordenClaves.push(clave)
+    mapa[clave] = filaAlineada
+  })
+
+  filasNuevas.forEach((filaNueva) => {
+    const filaAlineada = encabezadosFinal.map((h) => {
+      const i = encabezadosNuevos.indexOf(h)
+      return i === -1 ? '' : filaNueva[i]
+    })
+    const clave = String(filaAlineada[idxClave]).trim()
+    if (!clave) return
+    if (!(clave in mapa)) ordenClaves.push(clave)
+    mapa[clave] = filaAlineada
+  })
+
+  const filasFinal = ordenClaves.map((c) => mapa[c])
+
+  sheet.clearContents()
+  sheet.getRange(1, 1, 1, encabezadosFinal.length).setValues([encabezadosFinal])
+  if (filasFinal.length > 0) {
+    sheet.getRange(2, 1, filasFinal.length, encabezadosFinal.length).setValues(filasFinal)
+  }
+
+  return {
+    hoja: nombreHoja,
+    filasTotales: filasFinal.length,
+    filasRecibidasEnEsteBloque: filasNuevas.length,
+  }
 }

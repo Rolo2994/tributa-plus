@@ -1,62 +1,31 @@
 /**
  * googleSheetsApi.js
  * ─────────────────────────────────────────────────────────────
- * Cliente para hablar con tu Google Sheet a través de un Google
- * Apps Script desplegado como "Aplicación web" (ver
- * /apps-script/Code.gs y el README para el paso a paso de despliegue).
- *
- * Por qué Apps Script y no la API de Google Sheets directamente:
- * la API oficial de Sheets requiere que el usuario inicie sesión con
- * OAuth cada vez (o que manejes tokens de servicio de forma segura,
- * lo cual no es trivial sin backend propio). Un Apps Script Web App
- * desplegado con acceso "Cualquier usuario" actúa como tu propio
- * mini-backend gratuito: vive dentro del mismo Google Sheet, no
- * necesita servidor, y no expone credenciales en el navegador.
- *
- * DETALLE TÉCNICO IMPORTANTE (para que no te encuentres con el
- * error clásico de CORS): Apps Script Web Apps no permiten
- * configurar cabeceras CORS personalizadas. Si mandas un POST con
- * "Content-Type: application/json", el navegador dispara una
- * solicitud de verificación (preflight/OPTIONS) que Apps Script no
- * sabe responder, y el navegador bloquea la petición.
- * La solución estándar (y la que usa este archivo) es enviar el
- * POST con "Content-Type: text/plain" pero con un cuerpo que sigue
- * siendo JSON — así el navegador NO exige preflight, y en el
- * servidor (Code.gs) igual se lee y parsea como JSON normal.
+ * La URL del Apps Script ya NO es fija — se lee del Sheet propio
+ * de la cuenta que inició sesión (guardado en localStorage tras el
+ * login, ver SesionGate.jsx). Si por algún motivo no hay ninguno
+ * guardado (cuenta nueva sin configurar todavía), cae de vuelta a
+ * la variable de entorno fija, solo como respaldo.
  */
 
-const STORAGE_KEY_URL = 'tributaplus_sheets_url'
-
 function getBaseUrl() {
-  const propia = localStorage.getItem(STORAGE_KEY_URL)
-  return (propia && propia.trim()) || import.meta.env.VITE_SHEETS_API_URL || ''
-}
-
-export function getConfiguredSheetsUrl() {
-  return localStorage.getItem(STORAGE_KEY_URL) || ''
-}
-
-export function setConfiguredSheetsUrl(url) {
-  if (url && url.trim()) localStorage.setItem(STORAGE_KEY_URL, url.trim())
-  else localStorage.removeItem(STORAGE_KEY_URL)
+  return localStorage.getItem('ezwork_apps_script_url') || import.meta.env.VITE_SHEETS_API_URL || ''
 }
 
 async function callApi(action, params = {}, method = 'GET') {
-  if (!getBaseUrl()) {
-    throw new Error(
-      'VITE_SHEETS_API_URL no está configurado en .env — todavía estás en modo mock.'
-    )
+  const baseUrl = getBaseUrl()
+  if (!baseUrl) {
+    throw new Error('Todavía no configuraste tu Google Sheet — ve a Ajustes.')
   }
 
   if (method === 'GET') {
     const query = new URLSearchParams({ action, ...params, _t: Date.now() }).toString()
-    const res = await fetch(`${getBaseUrl()}?${query}`, { redirect: 'follow', cache: 'no-store' })
+    const res = await fetch(`${baseUrl}?${query}`, { redirect: 'follow', cache: 'no-store' })
     if (!res.ok) throw new Error(`Error ${res.status} al llamar a Google Sheets`)
     return res.json()
   }
 
-  // POST: text/plain evita el preflight CORS (ver nota arriba)
-  const res = await fetch(getBaseUrl(), {
+  const res = await fetch(baseUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action, ...params }),
@@ -65,42 +34,48 @@ async function callApi(action, params = {}, method = 'GET') {
   return res.json()
 }
 
-/** Lista todos los RUCs de la hoja principal (equivalente a leer_rucs() en Python). */
 export function getRucs() {
   return callApi('listRucs')
 }
 
-/** Trae el cronograma de un tipo de vencimiento ('SIRE' | 'DJ Mensual' | 'DJ Anual'). */
 export function getVencimientos(tipo, mes, anio) {
   return callApi('getVencimientos', { tipo, mes, anio })
 }
 
-/** Trae las notas/tributos guardados de un RUC. */
 export function getNotas(ruc) {
   return callApi('getNotas', { ruc })
 }
 
-/** Guarda (sobrescribe) las notas/tributos de un RUC. */
 export function saveNotas(ruc, notas) {
   return callApi('saveNotas', { ruc, notas: JSON.stringify(notas) }, 'POST')
 }
 
-/** Registra en la hoja "Log" cada acción relevante (login automático, envío WhatsApp, etc.) — opcional, útil como auditoría. */
 export function logActivity(ruc, mensaje) {
   return callApi('logActivity', { ruc, mensaje }, 'POST')
 }
 
-/** Lista el catálogo de tributos (hoja "Tributos": TRIBUTO | DECLARACION). */
 export function getTributos() {
   return callApi('listTributos')
 }
 
-/** Trae las notas de TODOS los RUCs de una sola vez (para sincronizar al abrir la app). */
 export function getAllNotas() {
   return callApi('listNotas')
 }
 
-/** Trae las filas con deuda pendiente de la hoja "Tax Status". */
 export function getTaxStatus() {
   return callApi('listTaxStatus')
+}
+
+// Agrega esto al final de googleSheetsApi.js
+
+export function getConfiguredSheetsUrl() {
+  return localStorage.getItem('ezwork_apps_script_url') || '';
+}
+
+export function setConfiguredSheetsUrl(url) {
+  if (url) {
+    localStorage.setItem('ezwork_apps_script_url', url);
+  } else {
+    localStorage.removeItem('ezwork_apps_script_url');
+  }
 }
