@@ -21,7 +21,7 @@ export default function SesionGate({ children }) {
 
   async function entrar() {
     setError('')
-    if (clave.trim().length < 6) {
+    if (modo === 'registro' && clave.trim().length < 6) {
       setError('La clave debe tener al menos 6 caracteres.')
       return
     }
