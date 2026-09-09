@@ -93,6 +93,15 @@ export default function WorkspaceCard() {
     window.location.href = urlConectarDrive(wsId)
   }
 
+  function cerrarSesion() {
+    const confirmar = window.confirm('¿Cerrar sesión? Vas a tener que volver a ingresar tu correo y clave.')
+    if (!confirmar) return
+    localStorage.removeItem('ezwork_workspace_id')
+    localStorage.removeItem('ezwork_correo')
+    localStorage.removeItem('ezwork_apps_script_url')
+    window.location.reload()
+  }
+
   return (
     <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
       <div className="font-bold text-[12.5px] mb-2.5">Cuenta de BuzónPDF</div>
@@ -153,6 +162,13 @@ export default function WorkspaceCard() {
               {guardandoCarpeta ? 'Guardando…' : 'Guardar nombre'}
             </button>
           </div>
+
+          <button
+            onClick={cerrarSesion}
+            className="w-full text-[11.5px] font-semibold text-rojo-sunat py-2"
+          >
+            Cerrar sesión
+          </button>
         </div>
       )}
     </div>
