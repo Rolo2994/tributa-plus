@@ -1,7 +1,6 @@
 import React from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import PinSecurityCard from '../components/PinSecurityCard.jsx'
-import DataSourceCard from '../components/DataSourceCard.jsx'
 import WorkspaceCard from '../components/WorkspaceCard.jsx'
 
 export default function SettingsScreen() {
@@ -22,7 +21,6 @@ export default function SettingsScreen() {
     <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
       <h2 className="font-bold text-[14px] mb-2.5">Filtros de la lista de RUCs</h2>
 
-      {/* Bloque de Grupos */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-2">Grupo</div>
         <div className="flex flex-wrap gap-1.5">
@@ -42,7 +40,6 @@ export default function SettingsScreen() {
         </div>
       </div>
 
-      {/* Bloque de Vencimiento */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-2">Tipo de vencimiento</div>
         <div className="flex bg-gray-100 rounded-[11px] p-[3px]">
@@ -58,16 +55,10 @@ export default function SettingsScreen() {
         </div>
       </div>
 
-      {/* Bloque de Seguridad */}
       <PinSecurityCard />
 
-      {/* Bloque de Base de datos / Sincronización */}
-      <DataSourceCard />
-
-      {/* Bloque de configuracion de BuzonPDF (Sheet propio + Drive propio) */}
       <WorkspaceCard />
 
-      {/* Bloque de Notificaciones */}
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-1">Notificaciones</div>
         <div className="text-[10.5px] text-muted mb-2.5">

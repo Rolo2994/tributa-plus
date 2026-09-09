@@ -6,7 +6,7 @@ import {
 } from '../services/buzonApi.js'
 
 export default function WorkspaceCard() {
-  const { pushLog } = useApp()
+  const { pushLog, sincronizarDatos } = useApp()
   const [wsId, setWsId] = useState(() => localStorage.getItem('ezwork_workspace_id') || '')
   const [cargando, setCargando] = useState(true)
   const [appsScriptUrl, setAppsScriptUrl] = useState('')
@@ -35,6 +35,9 @@ export default function WorkspaceCard() {
         setAppsScriptUrl(estado.apps_script_url || '')
         setNombreCarpeta(estado.carpeta_nombre || '')
         setDriveConectado(estado.drive_conectado)
+        if (estado.apps_script_url) {
+          localStorage.setItem('ezwork_apps_script_url', estado.apps_script_url)
+        }
       } else {
         pushLog(`✗ ${estado.error}`)
       }
@@ -55,8 +58,13 @@ export default function WorkspaceCard() {
     setGuardandoSheet(true)
     try {
       const res = await guardarAppsScriptUrl(wsId, appsScriptUrl.trim())
-      if (res.ok) pushLog('✓ URL de Google Sheet guardada')
-      else pushLog(`✗ ${res.error}`)
+      if (res.ok) {
+        localStorage.setItem('ezwork_apps_script_url', appsScriptUrl.trim())
+        pushLog('✓ URL de Google Sheet guardada')
+        sincronizarDatos()
+      } else {
+        pushLog(`✗ ${res.error}`)
+      }
     } catch (err) {
       pushLog(`✗ Error: ${err?.message || err}`)
     } finally {
