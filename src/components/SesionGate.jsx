@@ -6,6 +6,7 @@ export default function SesionGate({ children }) {
   const [paso, setPaso] = useState('correo') // 'correo' | 'clave'
   const [modo, setModo] = useState('login')
   const [correo, setCorreo] = useState('')
+  const [alias, setAlias] = useState('')
   const [clave, setClave] = useState('')
   const [error, setError] = useState('')
   const [cargando, setCargando] = useState(false)
@@ -36,6 +37,7 @@ export default function SesionGate({ children }) {
       }
       localStorage.setItem('ezwork_workspace_id', res.workspace_id)
       localStorage.setItem('ezwork_correo', correo.trim())
+      localStorage.setItem('ezwork_alias', alias.trim() || correo.trim())
       const estado = await obtenerEstadoWorkspace(res.workspace_id)
       if (estado.ok && estado.apps_script_url) {
         localStorage.setItem('ezwork_apps_script_url', estado.apps_script_url)
@@ -92,13 +94,22 @@ export default function SesionGate({ children }) {
             </>
           ) : (
             <>
+              {modo === 'registro' && (
+                <input
+                  type="text"
+                  value={alias}
+                  onChange={(e) => setAlias(e.target.value)}
+                  placeholder="Tu nombre o el de tu despacho (opcional)"
+                  className="w-full text-[13px] px-3.5 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-sky-200/50 mb-3"
+                />
+              )}
               <input
                 type="password"
                 value={clave}
                 onChange={(e) => setClave(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && entrar()}
                 placeholder="Tu clave"
-                autoFocus
+                autoFocus={modo === 'login'}
                 className="w-full text-[13px] px-3.5 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-sky-200/50 mb-3"
               />
               {error && <div className="text-[11px] text-[#FF9AA6] text-center mb-3">{error}</div>}
@@ -173,13 +184,22 @@ export default function SesionGate({ children }) {
               </>
             ) : (
               <>
+                {modo === 'registro' && (
+                  <input
+                    type="text"
+                    value={alias}
+                    onChange={(e) => setAlias(e.target.value)}
+                    placeholder="Tu nombre o el de tu despacho (opcional)"
+                    className="w-full text-[13px] px-3.5 py-3 rounded-xl bg-white border border-bordersoft mb-3"
+                  />
+                )}
                 <input
                   type="password"
                   value={clave}
                   onChange={(e) => setClave(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && entrar()}
                   placeholder="Tu clave"
-                  autoFocus
+                  autoFocus={modo === 'login'}
                   className="w-full text-[13px] px-3.5 py-3 rounded-xl bg-white border border-bordersoft mb-3"
                 />
                 {error && <div className="text-[11px] text-rojo-sunat text-center mb-3">{error}</div>}
