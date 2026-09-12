@@ -108,3 +108,12 @@ export async function iniciarSesion(correo, clave) {
   })
   return res.json()
 }
+
+export async function cambiarClave(correo, claveActual, claveNueva) {
+  const res = await fetch(`${BASE_URL}/cuenta/cambiar-clave`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-API-KEY': API_KEY },
+    body: JSON.stringify({ correo, clave_actual: claveActual, clave_nueva: claveNueva }),
+  })
+  return res.json()
+}

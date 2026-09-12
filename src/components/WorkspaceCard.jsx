@@ -4,6 +4,7 @@ import {
   crearWorkspace, obtenerEstadoWorkspace, guardarAppsScriptUrl,
   guardarNombreCarpeta, urlConectarDrive,
 } from '../services/buzonApi.js'
+import { cerrarSesion } from '../utils/sesion.js'
 
 export default function WorkspaceCard() {
   const { pushLog, sincronizarDatos } = useApp()
@@ -91,18 +92,6 @@ export default function WorkspaceCard() {
 
   function conectarDrive() {
     window.location.href = urlConectarDrive(wsId)
-  }
-
-  function cerrarSesion() {
-    const confirmar = window.confirm('¿Cerrar sesión? Vas a tener que volver a ingresar tu correo y clave.')
-    if (!confirmar) return
-    localStorage.removeItem('ezwork_workspace_id')
-    localStorage.removeItem('ezwork_correo')
-    localStorage.removeItem('ezwork_alias')
-    localStorage.removeItem('ezwork_apps_script_url')
-    localStorage.removeItem('tributaplus_pin_hash')
-    localStorage.removeItem('tributaplus_webauthn_credential_id')
-    window.location.reload()
   }
 
   return (

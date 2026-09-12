@@ -1,15 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
+import { cerrarSesion } from '../utils/sesion.js'
 
-/**
- * Consola de actividad flotante — muestra en vivo cada acción
- * simulada (login automático, sincronización, envíos por WhatsApp,
- * etc.), igual que el log de la app de escritorio de Rolo.
- */
 export default function ConsoleLog() {
   const { logs } = useApp()
   const [collapsed, setCollapsed] = useState(false)
   const bodyRef = useRef(null)
+  const alias = localStorage.getItem('ezwork_alias') || localStorage.getItem('ezwork_correo') || ''
 
   useEffect(() => {
     if (bodyRef.current) bodyRef.current.scrollTop = bodyRef.current.scrollHeight
@@ -27,14 +24,28 @@ export default function ConsoleLog() {
         </span>
         <span className="text-[#5A7186] text-[11px]">{collapsed ? '▸' : '▾'}</span>
       </button>
+
       {!collapsed && (
-        <div ref={bodyRef} className="font-mono text-[10.5px] leading-relaxed px-3 py-2.5 h-[112px] overflow-y-auto text-verde-console">
-          {logs.map((l) => (
-            <div key={l.id} className="animate-fadein whitespace-pre-wrap">
-              <span className="text-[#4A6A85]">[{l.ts.toTimeString().slice(0, 8)}]</span> {l.msg}
+        <>
+          {alias && (
+            <div className="flex items-center justify-between px-3 py-1.5 bg-[#0D1420] border-b border-[#1E2833]">
+              <span className="font-mono text-[9.5px] text-[#5A7186] truncate mr-2">👤 {alias}</span>
+              <button
+                onClick={(e) => { e.stopPropagation(); cerrarSesion() }}
+                className="font-mono text-[9px] text-[#FF9AA6] whitespace-nowrap"
+              >
+                Cerrar sesión
+              </button>
             </div>
-          ))}
-        </div>
+          )}
+          <div ref={bodyRef} className="font-mono text-[10.5px] leading-relaxed px-3 py-2.5 h-[112px] overflow-y-auto text-verde-console">
+            {logs.map((l) => (
+              <div key={l.id} className="animate-fadein whitespace-pre-wrap">
+                <span className="text-[#4A6A85]">[{l.ts.toTimeString().slice(0, 8)}]</span> {l.msg}
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

@@ -2,6 +2,7 @@ import React from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import PinSecurityCard from '../components/PinSecurityCard.jsx'
 import WorkspaceCard from '../components/WorkspaceCard.jsx'
+import CambiarClaveCard from '../components/CambiarClaveCard.jsx'
 
 export default function SettingsScreen() {
   const { 
@@ -58,6 +59,7 @@ export default function SettingsScreen() {
       <PinSecurityCard />
 
       <WorkspaceCard />
+      <CambiarClaveCard />
 
       <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
         <div className="font-bold text-[12.5px] mb-1">Notificaciones</div>
