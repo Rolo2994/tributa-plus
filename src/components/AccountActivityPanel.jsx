@@ -1,6 +1,7 @@
 import React from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import GroupFilterBar from './GroupFilterBar.jsx'
+import { cerrarSesion } from '../utils/sesion.js'
 
 const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
 
@@ -11,6 +12,7 @@ export default function AccountActivityPanel() {
   } = useApp()
 
   const activos = todosLosRecordatorios.filter((r) => r.recordar)
+  const alias = localStorage.getItem('ezwork_alias') || localStorage.getItem('ezwork_correo') || ''
 
   function cerrar() {
     setAccountPanelOpen(false)
@@ -44,10 +46,18 @@ export default function AccountActivityPanel() {
                 <path d="M9 21V13H15V21" stroke="#fff" strokeWidth="1.6" />
               </svg>
             </div>
-            <div>
+            <div className="min-w-0 flex-1">
               <div className="font-display font-bold text-[15px] text-white">Tributa+</div>
-              <div className="text-[11px] text-sky-200/70">Panel del contador</div>
+              <div className="text-[11px] text-sky-200/70 truncate">{alias || 'Panel del contador'}</div>
             </div>
+            {alias && (
+              <button
+                onClick={cerrarSesion}
+                className="flex-shrink-0 text-[10px] font-semibold text-white/80 bg-white/10 px-2.5 py-1.5 rounded-lg"
+              >
+                Salir
+              </button>
+            )}
           </div>
 
           <div className="flex gap-2 mt-4">
