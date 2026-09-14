@@ -4,6 +4,7 @@ import { normalizeRuc } from '../utils/normalizeRuc.js'
 import { normalizeTributos } from '../utils/tributosPalette.js'
 import { useReminders } from '../hooks/useReminders.js'
 import { useLocalStorage } from '../hooks/useLocalStorage.js'
+import { suscribirsePush } from '../services/pushApi.js'
 
 const AppContext = createContext(null)
 
@@ -216,6 +217,7 @@ export function AppProvider({ children }) {
     logs, pushLog,
     syncing, syncError, sincronizarDatos,
     notifPermission, requestNotifPermission,
+    suscribirsePush,
     tributos, tributosBase,
     getNotasForRuc, updateNotasForRuc, addTributoToRuc,
     updateTributoDeRuc, toggleRecordarTributo, removeTributoDeRuc, editTributoDeRuc,
