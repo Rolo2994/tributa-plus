@@ -14,6 +14,7 @@ export default function SettingsScreen() {
     availableGroups,
     notifPermission, 
     requestNotifPermission,
+    suscribirsePush,
   } = useApp()
 
   const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
@@ -70,7 +71,21 @@ export default function SettingsScreen() {
         </div>
         {notifPermission === 'default' && (
           <button
-            onClick={requestNotifPermission}
+            onClick={async () => {
+              try {
+                // 1. Pedir permiso nativo del navegador
+                await requestNotifPermission()
+                
+                // 2. Registrar la suscripción push en el servidor si la función existe en el contexto
+                if (typeof suscribirsePush === 'function') {
+                  await suscribirsePush()
+                  pushLog('Suscripción Push registrada correctamente')
+                }
+              } catch (err) {
+                console.error('Error al registrar la suscripción push:', err)
+                pushLog('Error al activar notificaciones push')
+              }
+            }}
             className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px]"
           >
             🔔 Activar notificaciones
