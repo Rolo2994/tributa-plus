@@ -69,26 +69,23 @@ export default function SettingsScreen() {
           {notifPermission === 'denied' && 'Bloqueadas por el navegador. Actívalas manualmente en Ajustes del sitio.'}
           {notifPermission === 'default' && 'Aún no activadas.'}
         </div>
-        {notifPermission === 'default' && (
+        {notifPermission !== 'denied' && (
           <button
             onClick={async () => {
+              if (notifPermission === 'default') await requestNotifPermission()
               try {
-                // 1. Pedir permiso nativo del navegador
-                await requestNotifPermission()
-                
-                // 2. Registrar la suscripción push en el servidor si la función existe en el contexto
                 if (typeof suscribirsePush === 'function') {
                   await suscribirsePush()
-                  pushLog('Suscripción Push registrada correctamente')
+                  pushLog('✓ Dispositivo registrado para notificaciones')
                 }
               } catch (err) {
-                console.error('Error al registrar la suscripción push:', err)
-                pushLog('Error al activar notificaciones push')
+                console.error(err)
+                pushLog('✗ No se pudo registrar el dispositivo para notificaciones')
               }
             }}
             className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px]"
           >
-            🔔 Activar notificaciones
+            {notifPermission === 'granted' ? '🔁 Registrar este dispositivo' : '🔔 Activar notificaciones'}
           </button>
         )}
       </div>

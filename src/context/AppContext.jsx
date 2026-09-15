@@ -44,6 +44,16 @@ export function AppProvider({ children }) {
 
   const goScreen = useCallback((id) => setCurrentScreen(id), [])
 
+  // ── Auto-suscripción silenciosa si el permiso ya fue concedido previamente ──
+  useEffect(() => {
+    if (typeof Notification === 'undefined') return
+    if (Notification.permission === 'granted') {
+      suscribirsePush().catch((err) => {
+        console.warn('No se pudo registrar la suscripción push automáticamente:', err)
+      })
+    }
+  }, [])
+
   // ── Guardado en la nube, con espera breve para no saturar mientras escribes ──
   const scheduleCloudSave = useCallback((rucId, notas) => {
     if (saveTimers.current[rucId]) clearTimeout(saveTimers.current[rucId])
@@ -104,7 +114,6 @@ export function AppProvider({ children }) {
           pushLog(`⚠ RUC(s) repetidos en el Excel (se usó solo la primera fila de cada uno): ${[...new Set(rucsDuplicados)].join(', ')}`)
         }
       } else {
-
         throw new Error(rucsRes?.error || 'Respuesta inesperada del Apps Script (RUCs)')
       }
 
