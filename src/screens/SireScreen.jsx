@@ -12,15 +12,17 @@ const ANIOS = [ANIO_ACTUAL, ANIO_ACTUAL - 1, ANIO_ACTUAL - 2]
 export default function SireScreen() {
   const { activeRuc, goScreen, pushLog } = useApp()
 
-  const [registro, setRegistro] = useState('Compras')
+  // Antes era un solo "registro" (Compras O Ventas). Ahora es un
+  // conjunto — se puede pedir Compras Y Ventas al mismo tiempo.
+  const [registrosElegidos, setRegistrosElegidos] = useState(new Set(['Compras']))
   const [opcion, setOpcion] = useState('Propuesta')
   const [anio, setAnio] = useState(ANIO_ACTUAL)
   const [mesIni, setMesIni] = useState(new Date().getMonth() + 1)
   const [mesFin, setMesFin] = useState(new Date().getMonth() + 1)
   const [formato, setFormato] = useState('TXT')
 
-  const [tareaId, setTareaId] = useState(null)
-  const [tarea, setTarea] = useState(null)
+  // Una tarea por cada registro pedido: { Compras: {tareaId, estado, ...}, Ventas: {...} }
+  const [tareas, setTareas] = useState({})
   const [ejecutando, setEjecutando] = useState(false)
   const intervaloRef = useRef(null)
 
@@ -48,15 +50,18 @@ export default function SireScreen() {
 
   useEffect(() => { cargarArchivos() }, [activeRuc]) // eslint-disable-line
 
-  const opcionesDisponibles =
-    registro === 'Compras'
-      ? ['Propuesta', 'Preliminar', 'Excluidos']
-      : ['Propuesta', 'Preliminar', 'No incluidos']
+  const opcionesDisponibles = ['Propuesta', 'Preliminar', 'Excluidos']
 
-  function normalizarOpcion(o) {
-    // "No incluidos" es el mismo concepto que "Excluidos" en Ventas,
-    // pero el backend siempre espera "Excluidos" como valor interno.
-    return o === 'No incluidos' ? 'Excluidos' : o
+  function toggleRegistro(r) {
+    setRegistrosElegidos((prev) => {
+      const next = new Set(prev)
+      if (next.has(r)) {
+        if (next.size > 1) next.delete(r) // no dejar la selección vacía
+      } else {
+        next.add(r)
+      }
+      return next
+    })
   }
 
   async function ejecutar() {
@@ -64,41 +69,67 @@ export default function SireScreen() {
       pushLog('⚠ El mes final no puede ser anterior al mes inicial.')
       return
     }
+    if (registrosElegidos.size === 0) {
+      pushLog('⚠ Elige Compras y/o Ventas.')
+      return
+    }
     const periodos = []
     for (let m = mesIni; m <= mesFin; m++) periodos.push({ anio, mes: m })
 
     setEjecutando(true)
-    setTarea(null)
-    try {
-      const res = await ejecutarSire({
-        ruc: activeRuc.ruc,
-        registro,
-        opcion: normalizarOpcion(opcion),
-        periodos,
-        formato,
-      })
-      if (!res.ok) {
-        pushLog(`✗ No se pudo iniciar: ${res.error}`)
-        setEjecutando(false)
-        return
+    const nuevasTareas = {}
+
+    // Se dispara una descarga por cada registro elegido — corren en
+    // paralelo del lado del servidor (cada una es su propia tarea con
+    // su propio tarea_id), y aquí las mostramos juntas.
+    for (const registro of registrosElegidos) {
+      try {
+        const res = await ejecutarSire({ ruc: activeRuc.ruc, registro, opcion, periodos, formato })
+        if (!res.ok) {
+          pushLog(`✗ No se pudo iniciar ${registro}: ${res.error}`)
+          continue
+        }
+        nuevasTareas[registro] = { tareaId: res.tarea_id, estado: 'en_cola', procesados: 0, total: res.total_periodos, resultados: [] }
+        pushLog(`SIRE ${registro} — ${opcion} — procesando ${res.total_periodos} periodo(s)…`)
+      } catch (err) {
+        pushLog(`✗ Error al iniciar ${registro}: ${err?.message || err}`)
       }
-      setTareaId(res.tarea_id)
-      pushLog(`SIRE ${registro} — ${opcion} — procesando ${res.total_periodos} periodo(s)…`)
-      intervaloRef.current = setInterval(async () => {
-        const est = await consultarEstado(res.tarea_id)
-        if (!est.ok) return
-        setTarea(est)
-        if (est.estado === 'completado') {
+    }
+
+    setTareas(nuevasTareas)
+
+    if (Object.keys(nuevasTareas).length === 0) {
+      setEjecutando(false)
+      return
+    }
+
+    intervaloRef.current = setInterval(async () => {
+      const actual = nuevasTareas // referencia estable a las tareas activas de esta corrida
+      const pendientes = Object.entries(actual).filter(([, t]) => t.estado !== 'completado')
+      const resultados = await Promise.all(
+        pendientes.map(async ([registro, t]) => {
+          const est = await consultarEstado(t.tareaId)
+          return [registro, est]
+        })
+      )
+      setTareas((prev) => {
+        const siguiente = { ...prev }
+        for (const [registro, est] of resultados) {
+          if (est?.ok) {
+            siguiente[registro] = { ...siguiente[registro], ...est }
+            actual[registro] = siguiente[registro] // mantener la referencia local sincronizada
+          }
+        }
+        const quedanPendientes = Object.values(siguiente).some((t) => t.estado !== 'completado')
+        if (!quedanPendientes) {
           clearInterval(intervaloRef.current)
           setEjecutando(false)
-          pushLog('✓ Descarga SIRE completada')
+          pushLog('✓ Descarga(s) SIRE completada(s)')
           cargarArchivos()
         }
-      }, 4000)
-    } catch (err) {
-      pushLog(`✗ Error: ${err?.message || err}`)
-      setEjecutando(false)
-    }
+        return siguiente
+      })
+    }, 4000)
   }
 
   if (!activeRuc) {
@@ -120,16 +151,21 @@ export default function SireScreen() {
       <div className="flex-1 overflow-y-auto px-4 pt-3.5 pb-[130px] space-y-3.5">
         <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
           <div className="mb-3.5">
-            <span className="block text-[11px] font-bold mb-1.5">Tipo de registro</span>
+            <span className="block text-[11px] font-bold mb-1.5">Tipo de registro (puedes elegir ambos)</span>
             <div className="flex gap-1.5">
               {['Compras', 'Ventas'].map((t) => (
                 <button
                   key={t}
-                  onClick={() => { setRegistro(t); setOpcion('Propuesta') }}
-                  className={`text-[11.5px] px-3.5 py-2 rounded-lg border ${
-                    registro === t ? 'bg-azul-inst text-white border-azul-inst' : 'border-bordersoft text-ink'
+                  onClick={() => toggleRegistro(t)}
+                  className={`flex items-center gap-1.5 text-[11.5px] px-3.5 py-2 rounded-lg border ${
+                    registrosElegidos.has(t) ? 'bg-azul-inst text-white border-azul-inst' : 'border-bordersoft text-ink'
                   }`}
                 >
+                  <span className={`w-[15px] h-[15px] rounded-[4px] border-[1.5px] flex-shrink-0 flex items-center justify-center text-[10px] ${
+                    registrosElegidos.has(t) ? 'bg-white text-azul-inst border-white' : 'border-current'
+                  }`}>
+                    {registrosElegidos.has(t) ? '✓' : ''}
+                  </span>
                   {t}
                 </button>
               ))}
@@ -201,10 +237,10 @@ export default function SireScreen() {
           </div>
         </div>
 
-        {tarea && (
-          <div className="bg-white rounded-xl border border-[#F0F3F7] p-3">
+        {Object.entries(tareas).map(([registro, tarea]) => (
+          <div key={registro} className="bg-white rounded-xl border border-[#F0F3F7] p-3">
             <div className="text-[12px] font-bold mb-2">
-              {tarea.estado === 'completado' ? '✓ Completado' : `Procesando… (${tarea.procesados}/${tarea.total})`}
+              {registro} — {tarea.estado === 'completado' ? '✓ Completado' : `Procesando… (${tarea.procesados}/${tarea.total})`}
             </div>
             {(tarea.resultados || []).map((r, i) => (
               <div
@@ -215,7 +251,7 @@ export default function SireScreen() {
               </div>
             ))}
           </div>
-        )}
+        ))}
 
         <div>
           <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-2">
@@ -242,7 +278,7 @@ export default function SireScreen() {
           disabled={ejecutando}
           className="w-full bg-azul-dark disabled:opacity-60 text-white text-[13px] font-bold py-3 rounded-2xl shadow-float"
         >
-          {ejecutando ? 'Descargando…' : '⬇ Ejecutar descarga SIRE'}
+          {ejecutando ? 'Descargando…' : `⬇ Ejecutar descarga SIRE (${[...registrosElegidos].join(' + ')})`}
         </button>
       </div>
     </div>

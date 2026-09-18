@@ -6,7 +6,7 @@ import { formatMoney } from '../utils/formatMoney.js'
  * DashboardShareCard: medidas fijas en píxeles, sin animaciones,
  * se renderiza fuera de pantalla y html2canvas la convierte en PNG.
  */
-const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, periodoLabel, casillas, detracciones, fecha }, ref) {
+const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, periodoLabel, mesAnteriorLabel, casillas, detracciones, fecha }, ref) {
   const c = casillas || {}
   const fmt = (v) => `S/ ${formatMoney(Number(v) || 0)}`
 
@@ -17,12 +17,16 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
     { label: 'Tributo Renta a pagar', value: fmt(c['304']), color: '#D9A404' },
   ]
 
+  const retencionesPercepcionesTotal = (Number(c['_percepciones_total']) || 0) + (Number(c['_retenciones_total']) || 0)
+
   const filas = [
     ['Ventas Netas Gravadas', '100', c['100']],
     ['IGV Ventas', '101', c['101']],
+    ['Descuento de ventas (IGV)', '103', c['103']],
     ['Compras — Base gravadas', '107', c['107']],
     ['Compras — Crédito fiscal', '178', c['178']],
-    ['Saldo a favor anterior', '145', c['145']],
+    [`Saldo a favor IGV (${mesAnteriorLabel || 'anterior'})`, '145', c['145']],
+    ['Retenciones y percepciones IGV', '-', retencionesPercepcionesTotal],
     ['Ingresos Netos (Renta)', '301', c['301']],
     ['Pago a cuenta Renta', '312', c['312']],
   ]

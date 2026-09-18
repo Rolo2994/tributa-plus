@@ -257,6 +257,8 @@ export default function DashboardScreen() {
 
   const periodoFv = `${anioFv}${String(mesFv).padStart(2, '0')}`
   const periodoFvLabel = `${MESES[mesFv - 1]} ${anioFv}`
+  const mesAnteriorIdx = mesFv === 1 ? 12 : mesFv - 1
+  const mesAnteriorLabel = MESES[mesAnteriorIdx - 1]
 
   const [regimen, setRegimen] = useState(REGIMENES[2])
   const [supero300uit, setSupero300uit] = useState(false)
@@ -266,6 +268,12 @@ export default function DashboardScreen() {
   const [saldoFavorIgv, setSaldoFavorIgv] = useState('0')
   const [creditoEspecial, setCreditoEspecial] = useState('0')
   const [pagosCuentaExceso, setPagosCuentaExceso] = useState('0')
+  const [percepcionesIgvAnterior, setPercepcionesIgvAnterior] = useState('0')
+  const [percepcionesIgvActual, setPercepcionesIgvActual] = useState('0')
+  const [retencionesIgvAnterior, setRetencionesIgvAnterior] = useState('0')
+  const [retencionesIgvActual, setRetencionesIgvActual] = useState('0')
+  const [saldoFavorRenta, setSaldoFavorRenta] = useState('0')
+  const [saldoItan, setSaldoItan] = useState('0')
 
   const usaCoeficiente = regimen.startsWith('Régimen General') || (regimen.startsWith('MYPE') && supero300uit)
   const tasaRenta = regimen.startsWith('RER')
@@ -327,6 +335,12 @@ export default function DashboardScreen() {
         credito_especial: creditoEspecial,
         pagos_cuenta_exceso: pagosCuentaExceso,
         tasa_renta: tasaRenta,
+        percepciones_igv_anterior: percepcionesIgvAnterior,
+        percepciones_igv_actual: percepcionesIgvActual,
+        retenciones_igv_anterior: retencionesIgvAnterior,
+        retenciones_igv_actual: retencionesIgvActual,
+        saldo_favor_renta: saldoFavorRenta,
+        saldo_itan: saldoItan,
       })
       if (!res.ok) {
         pushLog(`✗ ${res.error}`)
@@ -591,9 +605,15 @@ export default function DashboardScreen() {
                 <div className="text-[12px] font-bold mb-2.5 pt-2 border-t border-[#F0F3F7]">Datos que no vienen en el ZIP</div>
                 <div className="space-y-2">
                   <CampoNumero label="% de prorrata IGV (100 si no aplica)" value={prorrataPct} onChange={setProrrataPct} />
-                  <CampoNumero label="Saldo a favor IGV, periodo anterior (S/)" value={saldoFavorIgv} onChange={setSaldoFavorIgv} />
+                  <CampoNumero label={`Saldo a favor IGV (${mesAnteriorLabel}) (S/)`} value={saldoFavorIgv} onChange={setSaldoFavorIgv} />
                   <CampoNumero label="Crédito fiscal especial (S/)" value={creditoEspecial} onChange={setCreditoEspecial} />
+                  <CampoNumero label={`Percepciones IGV no aplicadas (${mesAnteriorLabel}) (S/)`} value={percepcionesIgvAnterior} onChange={setPercepcionesIgvAnterior} />
+                  <CampoNumero label={`Percepciones IGV del periodo (${periodoFvLabel}) (S/)`} value={percepcionesIgvActual} onChange={setPercepcionesIgvActual} />
+                  <CampoNumero label={`Retenciones IGV no aplicadas (${mesAnteriorLabel}) (S/)`} value={retencionesIgvAnterior} onChange={setRetencionesIgvAnterior} />
+                  <CampoNumero label={`Retenciones IGV del periodo (${periodoFvLabel}) (S/)`} value={retencionesIgvActual} onChange={setRetencionesIgvActual} />
                   <CampoNumero label="Pagos a cuenta Renta en exceso (S/)" value={pagosCuentaExceso} onChange={setPagosCuentaExceso} />
+                  <CampoNumero label="Saldo a favor de Renta (S/)" value={saldoFavorRenta} onChange={setSaldoFavorRenta} />
+                  <CampoNumero label="Saldo ITAN (S/)" value={saldoItan} onChange={setSaldoItan} />
                 </div>
               </div>
 
@@ -609,12 +629,43 @@ export default function DashboardScreen() {
                 <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4 space-y-3">
                   <div className="font-bold text-[13px]">{activeRuc.razonSocial} — {periodoFvLabel}</div>
 
+                  <div>
+                    <div className="text-[10.5px] font-bold text-muted uppercase tracking-wide mb-2">Resumen Ejecutivo</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(resultadoFv.resumen || []).map((k, i) => (
+                        <div key={i} className="bg-[#F7F9FB] rounded-xl border border-[#F0F3F7] p-3">
+                          <div className="text-[9px] text-muted uppercase tracking-wide font-semibold mb-1 truncate">{k.titulo}</div>
+                          <div className="text-[10px] text-ink font-medium mb-1 leading-tight">{k.subtitulo}</div>
+                          <div className={`font-display font-extrabold text-[16px] mb-1 ${
+                            k.tono === 'negativo' ? 'text-rojo-sunat' : k.tono === 'positivo' ? 'text-verde' : 'text-ink'
+                          }`}>S/ {formatMoney(k.valor)}</div>
+                          <div className="w-full h-1.5 bg-[#EDF1F6] rounded-full overflow-hidden mb-1">
+                            <div
+                              className={`h-full rounded-full ${
+                                k.tono === 'negativo' ? 'bg-rojo-sunat' : k.tono === 'positivo' ? 'bg-verde' : 'bg-ambar'
+                              }`}
+                              style={{ width: `${Math.min(Math.max(k.pct, 0), 100)}%` }}
+                            />
+                          </div>
+                          <div className={`text-[9px] font-semibold ${
+                            k.tono === 'negativo' ? 'text-rojo-sunat' : k.tono === 'positivo' ? 'text-verde' : 'text-muted'
+                          }`}>{k.nota}</div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-[9px] text-muted mt-2 leading-snug">
+                      La equivalencia en facturación usa la tasa general de IGV (18%). El % de crédito en riesgo depende de que el depósito de la detracción ya se haya realizado — verifícalo en la Consulta de Pago de Detracciones (SPOT), este ZIP no indica el estado del depósito.
+                    </div>
+                  </div>
+
                   <SeccionCasillas titulo="IGV VENTAS" filas={[
                     ['Ventas Netas Gravadas (Base)', '100', resultadoFv.casillas['100']],
                     ['Ventas Netas Gravadas (IGV)', '101', resultadoFv.casillas['101']],
+                    ['Descuentos de ventas (Base)', '102', resultadoFv.casillas['102']],
+                    ['Descuentos de ventas (IGV)', '103', resultadoFv.casillas['103']],
                     ['No Gravadas', '105', resultadoFv.casillas['105']],
                     ['Exportaciones facturadas', '106', resultadoFv.casillas['106']],
-                    ['TOTAL IGV VENTAS', '131', resultadoFv.casillas['131'], true],
+                    ['TOTAL IGV VENTAS (neto de descuentos)', '131', resultadoFv.casillas['131'], true],
                   ]} />
 
                   <SeccionCasillas titulo="IGV COMPRAS" filas={[
@@ -628,14 +679,24 @@ export default function DashboardScreen() {
                   <SeccionCasillas titulo="RENTA" filas={[
                     ['Ingresos Netos', '301', resultadoFv.casillas['301']],
                     ['Pago a cuenta calculado', '312', resultadoFv.casillas['312']],
+                    ['Pagos a cuenta en exceso', '336', resultadoFv.casillas['336']],
+                    ['Saldo a favor de Renta', '-', resultadoFv.casillas['_saldo_favor_renta']],
+                    ['Saldo ITAN', '-', resultadoFv.casillas['_saldo_itan']],
                     ['Tributo a pagar por Renta', '304', resultadoFv.casillas['304'], true],
                   ]} />
 
                   <SeccionCasillas titulo="DETERMINACIÓN IGV" filas={[
-                    ['Débito fiscal', '-', resultadoFv.casillas['_debito_igv']],
+                    ['Débito fiscal (neto de descuentos)', '-', resultadoFv.casillas['_debito_igv']],
                     ['Crédito fiscal', '-', resultadoFv.casillas['_credito_igv']],
-                    ['Saldo a favor periodo anterior', '145', resultadoFv.casillas['145']],
+                    [`Saldo a favor IGV (${mesAnteriorLabel})`, '145', resultadoFv.casillas['145']],
+                    [`Percepciones no aplicadas (${mesAnteriorLabel})`, '-', Number(percepcionesIgvAnterior) || 0],
+                    [`Percepciones del periodo (${periodoFvLabel})`, '-', Number(percepcionesIgvActual) || 0],
+                    [`Retenciones no aplicadas (${mesAnteriorLabel})`, '-', Number(retencionesIgvAnterior) || 0],
+                    [`Retenciones del periodo (${periodoFvLabel})`, '-', Number(retencionesIgvActual) || 0],
                     ['Tributo a pagar (IGV)', '184', resultadoFv.casillas['184'], true],
+                    ['Saldo a favor IGV siguiente periodo', '-', resultadoFv.casillas['_saldo_favor_igv']],
+                    ['Saldo a favor de percepciones siguiente periodo', '-', resultadoFv.casillas['_percepciones_saldo_favor']],
+                    ['Saldo a favor de retenciones siguiente periodo', '-', resultadoFv.casillas['_retenciones_saldo_favor']],
                   ]} />
 
                   {resultadoFv.detracciones?.n_comprobantes > 0 && (
@@ -729,6 +790,7 @@ export default function DashboardScreen() {
             ref={shareCardFvRef}
             empresaLabel={activeRuc?.razonSocial || ''}
             periodoLabel={periodoFvLabel}
+            mesAnteriorLabel={mesAnteriorLabel}
             casillas={resultadoFv.casillas}
             detracciones={resultadoFv.detracciones}
             fecha={hoy.toLocaleDateString('es-PE')}
