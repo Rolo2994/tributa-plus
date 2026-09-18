@@ -18,6 +18,7 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
   ]
 
   const retencionesPercepcionesTotal = (Number(c['_percepciones_total']) || 0) + (Number(c['_retenciones_total']) || 0)
+  const igvAFavor = !(Number(c['184']) > 0)
 
   const filas = [
     ['Ventas Netas Gravadas', '100', c['100']],
@@ -69,6 +70,21 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
           ))}
         </tbody>
       </table>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
+        <div style={{ background: igvAFavor ? '#EAF6EF' : '#FCE9EB', borderRadius: 10, padding: 10 }}>
+          <div style={{ fontSize: 9, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>
+            Saldo IGV {igvAFavor ? '(a favor)' : '(a pagar)'}
+          </div>
+          <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 14, color: igvAFavor ? '#1E8E5A' : '#C8102E' }}>
+            {fmt(igvAFavor ? c['_saldo_favor_igv'] : c['184'])}
+          </div>
+        </div>
+        <div style={{ background: '#FBF1DD', borderRadius: 10, padding: 10 }}>
+          <div style={{ fontSize: 9, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>Renta a pagar</div>
+          <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 14, color: '#8A6A00' }}>{fmt(c['304'])}</div>
+        </div>
+      </div>
 
       {detracciones?.n_comprobantes > 0 && (
         <div style={{ background: '#FBF1DD', borderRadius: 10, padding: 10, fontSize: 9.5, color: '#8A6A00', marginBottom: 4 }}>

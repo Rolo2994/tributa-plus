@@ -298,14 +298,18 @@ export default function DashboardScreen() {
         setArchivosCompras([]); setArchivosVentas([])
         return
       }
-      const compras = (res.archivos || []).filter((a) => a.registro === 'Compras')
-      const ventas = (res.archivos || []).filter((a) => a.registro === 'Ventas')
+      // Solo "Propuesta" sirve para un preliminar: si ya existe un
+      // "Preliminar" o "Excluidos" es porque el SIRE de ese periodo ya
+      // fue trabajado, y ese dato ya no sirve para simular "antes de
+      // trabajarlo".
+      const compras = (res.archivos || []).filter((a) => a.registro === 'Compras' && a.opcion === 'Propuesta')
+      const ventas = (res.archivos || []).filter((a) => a.registro === 'Ventas' && a.opcion === 'Propuesta')
       setArchivosCompras(compras)
       setArchivosVentas(ventas)
       setFileIdCompras(compras[0]?.file_id || '')
       setFileIdVentas(ventas[0]?.file_id || '')
-      if (compras.length === 0) pushLog(`⚠ No hay ZIP de Compras para ${periodoFv} — descárgalo primero desde SIRE.`)
-      if (ventas.length === 0) pushLog(`⚠ No hay ZIP de Ventas para ${periodoFv} — descárgalo primero desde SIRE.`)
+      if (compras.length === 0) pushLog(`⚠ No hay ZIP de Compras "Propuesta" para ${periodoFv} — descárgalo desde SIRE (solo Propuesta sirve para el preliminar).`)
+      if (ventas.length === 0) pushLog(`⚠ No hay ZIP de Ventas "Propuesta" para ${periodoFv} — descárgalo desde SIRE (solo Propuesta sirve para el preliminar).`)
     } catch (err) {
       pushLog(`✗ Error al buscar archivos: ${err?.message || err}`)
     } finally {
@@ -676,15 +680,6 @@ export default function DashboardScreen() {
                     ['TOTAL CRÉDITO FISCAL IGV', '178', resultadoFv.casillas['178'], true],
                   ]} />
 
-                  <SeccionCasillas titulo="RENTA" filas={[
-                    ['Ingresos Netos', '301', resultadoFv.casillas['301']],
-                    ['Pago a cuenta calculado', '312', resultadoFv.casillas['312']],
-                    ['Pagos a cuenta en exceso', '336', resultadoFv.casillas['336']],
-                    ['Saldo a favor de Renta', '-', resultadoFv.casillas['_saldo_favor_renta']],
-                    ['Saldo ITAN', '-', resultadoFv.casillas['_saldo_itan']],
-                    ['Tributo a pagar por Renta', '304', resultadoFv.casillas['304'], true],
-                  ]} />
-
                   <SeccionCasillas titulo="DETERMINACIÓN IGV" filas={[
                     ['Débito fiscal (neto de descuentos)', '-', resultadoFv.casillas['_debito_igv']],
                     ['Crédito fiscal', '-', resultadoFv.casillas['_credito_igv']],
@@ -697,6 +692,15 @@ export default function DashboardScreen() {
                     ['Saldo a favor IGV siguiente periodo', '-', resultadoFv.casillas['_saldo_favor_igv']],
                     ['Saldo a favor de percepciones siguiente periodo', '-', resultadoFv.casillas['_percepciones_saldo_favor']],
                     ['Saldo a favor de retenciones siguiente periodo', '-', resultadoFv.casillas['_retenciones_saldo_favor']],
+                  ]} />
+
+                  <SeccionCasillas titulo="RENTA" filas={[
+                    ['Ingresos Netos', '301', resultadoFv.casillas['301']],
+                    ['Pago a cuenta calculado', '312', resultadoFv.casillas['312']],
+                    ['Pagos a cuenta en exceso', '336', resultadoFv.casillas['336']],
+                    ['Saldo a favor de Renta', '-', resultadoFv.casillas['_saldo_favor_renta']],
+                    ['Saldo ITAN', '-', resultadoFv.casillas['_saldo_itan']],
+                    ['Tributo a pagar por Renta', '304', resultadoFv.casillas['304'], true],
                   ]} />
 
                   {resultadoFv.detracciones?.n_comprobantes > 0 && (
