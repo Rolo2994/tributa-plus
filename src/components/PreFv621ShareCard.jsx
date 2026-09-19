@@ -6,19 +6,13 @@ import { formatMoney } from '../utils/formatMoney.js'
  * DashboardShareCard: medidas fijas en píxeles, sin animaciones,
  * se renderiza fuera de pantalla y html2canvas la convierte en PNG.
  */
-const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, periodoLabel, mesAnteriorLabel, casillas, detracciones, fecha }, ref) {
+const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, periodoLabel, mesAnteriorLabel, casillas, detracciones, resumen, fecha }, ref) {
   const c = casillas || {}
   const fmt = (v) => `S/ ${formatMoney(Number(v) || 0)}`
 
-  const kpis = [
-    { label: 'Total IGV Ventas', value: fmt(c['131']), color: '#152233' },
-    { label: 'Crédito Fiscal IGV', value: fmt(c['178']), color: '#152233' },
-    { label: 'Tributo IGV a pagar', value: fmt(c['184']), color: '#C8102E' },
-    { label: 'Tributo Renta a pagar', value: fmt(c['304']), color: '#D9A404' },
-  ]
+  const TONO_COLOR = { negativo: '#C8102E', positivo: '#1E8E5A', neutro: '#8A6A00' }
 
   const retencionesPercepcionesTotal = (Number(c['_percepciones_total']) || 0) + (Number(c['_retenciones_total']) || 0)
-  const igvAFavor = !(Number(c['184']) > 0)
 
   const filas = [
     ['Ventas Netas Gravadas', '100', c['100']],
@@ -43,10 +37,10 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
-        {kpis.map((k) => (
-          <div key={k.label} style={{ background: '#F7F9FB', borderRadius: 12, padding: 12, border: '1px solid #F0F3F7' }}>
-            <div style={{ fontSize: 9, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 4 }}>{k.label}</div>
-            <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 15, color: k.color }}>{k.value}</div>
+        {(resumen || []).map((k, i) => (
+          <div key={i} style={{ background: '#F7F9FB', borderRadius: 12, padding: 12, border: '1px solid #F0F3F7' }}>
+            <div style={{ fontSize: 8.5, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3, lineHeight: 1.2 }}>{k.subtitulo}</div>
+            <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 15, color: TONO_COLOR[k.tono] || '#152233' }}>{fmt(k.valor)}</div>
           </div>
         ))}
       </div>
@@ -70,21 +64,6 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
           ))}
         </tbody>
       </table>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-        <div style={{ background: igvAFavor ? '#EAF6EF' : '#FCE9EB', borderRadius: 10, padding: 10 }}>
-          <div style={{ fontSize: 9, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>
-            Saldo IGV {igvAFavor ? '(a favor)' : '(a pagar)'}
-          </div>
-          <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 14, color: igvAFavor ? '#1E8E5A' : '#C8102E' }}>
-            {fmt(igvAFavor ? c['_saldo_favor_igv'] : c['184'])}
-          </div>
-        </div>
-        <div style={{ background: '#FBF1DD', borderRadius: 10, padding: 10 }}>
-          <div style={{ fontSize: 9, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3 }}>Renta a pagar</div>
-          <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 14, color: '#8A6A00' }}>{fmt(c['304'])}</div>
-        </div>
-      </div>
 
       {detracciones?.n_comprobantes > 0 && (
         <div style={{ background: '#FBF1DD', borderRadius: 10, padding: 10, fontSize: 9.5, color: '#8A6A00', marginBottom: 4 }}>

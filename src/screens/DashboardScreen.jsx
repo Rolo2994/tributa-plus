@@ -13,19 +13,11 @@ import CustomSelect from '../components/CustomSelect.jsx'
 import DebtTreemap from '../components/DebtTreemap.jsx'
 import DashboardShareCard from '../components/DashboardShareCard.jsx'
 import PreFv621ShareCard from '../components/PreFv621ShareCard.jsx'
-import { PAGINAS_LOGIN, PAGINAS_DIRECTAS } from '../data/mockData.js'
 
 const MES_ABBR = MESES.map((m) => m.slice(0, 3))
 const ANIO_ACTUAL = new Date().getFullYear()
 const ANIOS_SIRE = [ANIO_ACTUAL, ANIO_ACTUAL - 1, ANIO_ACTUAL - 2]
 const REGIMENES = ['RER (Régimen Especial)', 'MYPE Tributario', 'Régimen General']
-
-const ACCIONES = [
-  { id: 'buzon-ejecutar', label: 'Buzón PDF', icon: '📥' },
-  { id: 'validez', label: 'Validez CP', icon: '🔎' },
-  { id: 'detracc', label: 'Detracciones', icon: '📊' },
-  { id: 'sire', label: 'SIRE', icon: '⬇' },
-]
 
 const TIPOS_DASHBOARD = [
   { id: 'tributario', label: 'Tributario' },
@@ -40,7 +32,7 @@ function calcularCoeficiente(ingresos, impuesto) {
 }
 
 export default function DashboardScreen() {
-  const { rucs, visibleRucs, groupFilter, activeRuc, setDrawerOpen, pushLog, goScreen } = useApp()
+  const { rucs, visibleRucs, groupFilter, activeRuc, pushLog, goScreen } = useApp()
 
   const [tipoDashboard, setTipoDashboard] = useState('tributario')
 
@@ -240,12 +232,6 @@ export default function DashboardScreen() {
     }
   }
 
-  function autoLogin(pagina) {
-    pushLog(`Iniciando sesión — ${activeRuc?.razonSocial || '—'} → ${pagina}`)
-    pushLog('Usuario y clave leídos de Google Sheets…')
-    setTimeout(() => pushLog(`✓ Sesión abierta en ${pagina}`), 800)
-  }
-
   // ══════════════════ Dashboard PRE FV621 (nuevo) ══════════════════
   const [anioFv, setAnioFv] = useState(ANIO_ACTUAL)
   const [mesFv, setMesFv] = useState(new Date().getMonth() + 1)
@@ -400,31 +386,35 @@ export default function DashboardScreen() {
   }
 
   return (
-    <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 pt-4 pb-[130px]">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-display font-bold text-[16px] text-ink">Dashboard</h2>
-        <button
-          onClick={alCompartir}
-          disabled={tipoDashboard === 'pre-fv621' && (generandoImagenFv || !resultadoFv)}
-          className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-azul-dark disabled:opacity-50 px-3 py-1.5 rounded-full"
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v14" strokeLinecap="round" strokeLinejoin="round" /></svg>
-          {tipoDashboard === 'pre-fv621' && generandoImagenFv ? 'Generando…' : 'Compartir'}
-        </button>
+    <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden pb-[130px]">
+      <div className="sticky top-0 z-20 bg-[#D7DEE8] md:bg-[#EEF2F7] px-4 pt-4 pb-3">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-display font-bold text-[16px] text-ink">Dashboard</h2>
+          <button
+            onClick={alCompartir}
+            disabled={tipoDashboard === 'pre-fv621' && (generandoImagenFv || !resultadoFv)}
+            className="flex items-center gap-1.5 text-[11px] font-semibold text-white bg-azul-dark disabled:opacity-50 px-3 py-1.5 rounded-full"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.2"><path d="M4 12v7a1 1 0 001 1h14a1 1 0 001-1v-7M16 6l-4-4-4 4M12 2v14" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            {tipoDashboard === 'pre-fv621' && generandoImagenFv ? 'Generando…' : 'Compartir'}
+          </button>
+        </div>
+
+        {/* ── Selector de tipo de dashboard ── */}
+        <div className="flex bg-[#F1F4F8] rounded-xl p-[3px]">
+          {TIPOS_DASHBOARD.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => setTipoDashboard(t.id)}
+              className={`flex-1 py-2 text-[11.5px] font-semibold rounded-[9px] ${tipoDashboard === t.id ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* ── Selector de tipo de dashboard ── */}
-      <div className="flex bg-[#F1F4F8] rounded-xl p-[3px] mb-4">
-        {TIPOS_DASHBOARD.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setTipoDashboard(t.id)}
-            className={`flex-1 py-2 text-[11.5px] font-semibold rounded-[9px] ${tipoDashboard === t.id ? 'bg-white text-azul-inst shadow' : 'text-muted'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      <div className="px-4 pt-4">
 
       {tipoDashboard === 'tributario' ? (
         <>
@@ -714,38 +704,6 @@ export default function DashboardScreen() {
           )}
         </>
       )}
-
-      <div className="flex items-center justify-between mb-2 mt-5">
-        <div className="font-display font-bold text-[14px] text-ink">Acciones</div>
-        <button onClick={() => setDrawerOpen(true)} className="text-[10.5px] font-semibold text-azul-inst bg-[#E7EEF7] px-2.5 py-1.5 rounded-full truncate max-w-[160px]">
-          {activeRuc ? activeRuc.razonSocial : 'Elegir RUC'}
-        </button>
-      </div>
-
-      <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 mb-3">
-        {ACCIONES.map((a) => (
-          <button key={a.id} onClick={() => goScreen(a.id)} className="flex-shrink-0 w-[84px] bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-3 text-center">
-            <div className="text-[22px] mb-1">{a.icon}</div>
-            <div className="text-[10px] font-semibold text-ink leading-tight">{a.label}</div>
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1 mb-3">
-        {PAGINAS_LOGIN.map((p) => (
-          <button key={p.id} onClick={() => autoLogin(p.nombre)} className="flex-shrink-0 w-[130px] bg-[#F7F9FB] rounded-2xl border border-bordersoft p-3 text-left">
-            <div className="text-[10.5px] font-semibold text-ink leading-tight">{p.nombre}</div>
-            <div className="text-[9px] text-muted mt-1 leading-tight">{p.desc}</div>
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        {PAGINAS_DIRECTAS.map((d) => (
-          <button key={d.id} onClick={() => pushLog(`Abriendo ${d.nombre}…`)} className="bg-[#F1F4F8] text-azul-inst font-semibold text-[11px] px-2 py-2.5 rounded-xl text-center border border-bordersoft">
-            {d.nombre}
-          </button>
-        ))}
       </div>
 
       {/* ── Sheet: 3 opciones de compartir (solo Tributario) ── */}
@@ -797,6 +755,7 @@ export default function DashboardScreen() {
             mesAnteriorLabel={mesAnteriorLabel}
             casillas={resultadoFv.casillas}
             detracciones={resultadoFv.detracciones}
+            resumen={resultadoFv.resumen}
             fecha={hoy.toLocaleDateString('es-PE')}
           />
         )}

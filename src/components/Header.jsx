@@ -27,24 +27,33 @@ function ClockDigital() {
 }
 
 export default function Header({ onLock }) {
-  const { setAccountPanelOpen, rucs } = useApp()
+  const { setAccountPanelOpen, setDrawerOpen, rucs, activeRuc } = useApp()
   const vencidosHoy = 2 // valor de ejemplo — vendría del cronograma real
 
   return (
     <div className="app-safe-top relative flex-shrink-0 bg-gradient-to-b from-azul-inst to-azul-dark px-[18px] pt-4 pb-3.5 after:content-[''] after:absolute after:left-0 after:right-0 after:bottom-0 after:h-[3px] after:bg-rojo-sunat">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-[10px] bg-white/10 border border-white/20 flex items-center justify-center">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <button
+            onClick={() => setDrawerOpen(true)}
+            title="Cambiar RUC"
+            className="max-w-[110px] h-[38px] px-2.5 rounded-[10px] bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0"
+          >
+            <span className="text-[10.5px] font-semibold text-white truncate">
+              {activeRuc ? activeRuc.razonSocial : 'Elegir RUC'}
+            </span>
+          </button>
+          <div className="w-9 h-9 rounded-[10px] bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M4 21V9L12 3L20 9V21H4Z" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
               <path d="M9 21V13H15V21" stroke="#fff" strokeWidth="1.6" />
             </svg>
           </div>
-          <div className="font-display font-extrabold text-[17px] text-white tracking-tight">
+          <div className="font-display font-extrabold text-[17px] text-white tracking-tight hidden sm:block">
             Tributa<span className="text-[#FF6B7F]">+</span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-shrink-0">
           <button
             onClick={onLock}
             title="Bloquear"

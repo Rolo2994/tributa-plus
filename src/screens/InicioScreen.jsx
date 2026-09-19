@@ -10,6 +10,13 @@ import CustomSelect from '../components/CustomSelect.jsx'
 import GroupFilterBar from '../components/GroupFilterBar.jsx'
 import { PAGINAS_LOGIN, PAGINAS_DIRECTAS } from '../data/mockData.js'
 
+const ACCIONES = [
+  { id: 'buzon-ejecutar', label: 'Buzón PDF', icon: '📥' },
+  { id: 'validez', label: 'Validez CP', icon: '🔎' },
+  { id: 'detracc', label: 'Detracciones', icon: '📊' },
+  { id: 'sire', label: 'SIRE', icon: '⬇' },
+]
+
 const COLOR_ESTADO = {
   hoy: 'bg-rojo-sunat text-white',
   proximo: 'bg-ambar text-white',
@@ -40,7 +47,7 @@ export default function InicioScreen() {
   const {
     pushLog, todosLosRecordatorios, editTributoDeRuc, removeTributoDeRuc,
     rucs, visibleRucs, groupFilter, availableGroups, tributos, tributosBase,
-    vencimientoTipo, setVencimientoTipo, activeRuc,
+    vencimientoTipo, setVencimientoTipo, activeRuc, goScreen,
   } = useApp()
 
   const hoy = new Date()
@@ -115,12 +122,20 @@ export default function InicioScreen() {
 
   return (
     <div className="relative flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-4 md:px-8 pt-4 pb-[130px] md:pb-8">
-      <h2 className="font-display font-bold text-[14px] text-ink mb-2.5">Cronograma — {mesSel} {anioSel}</h2>
-
-      {/* ── Accesos rápidos compactos (login + directos) ── */}
+      {/* ── Accesos rápidos compactos (acciones + login + directos) ── */}
       <div className="mb-4">
         <div className="text-[11px] font-bold text-muted uppercase tracking-wide mb-2">Accesos rápidos — {activeRuc?.razonSocial || 'elige un RUC'}</div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {ACCIONES.map((a) => (
+            <button
+              key={a.id}
+              onClick={() => goScreen(a.id)}
+              className="flex-shrink-0 w-[108px] bg-white rounded-xl border border-[#F0F3F7] shadow-card p-2.5 text-left"
+            >
+              <div className="text-[16px] leading-none mb-1">{a.icon}</div>
+              <div className="text-[10px] font-semibold text-ink leading-tight">{a.label}</div>
+            </button>
+          ))}
           {PAGINAS_LOGIN.map((p) => (
             <button
               key={p.id}
@@ -130,17 +145,22 @@ export default function InicioScreen() {
               <div className="text-[10px] font-semibold text-ink leading-tight">{p.nombre}</div>
             </button>
           ))}
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 mt-2">
           {PAGINAS_DIRECTAS.map((d) => (
             <button
               key={d.id}
               onClick={() => pushLog(`Abriendo ${d.nombre}…`)}
-              className="flex-shrink-0 w-[108px] bg-[#F1F4F8] rounded-xl border border-bordersoft p-2.5 text-center"
+              className="bg-[#F1F4F8] text-azul-inst font-semibold text-[11px] px-2 py-2.5 rounded-xl text-center border border-bordersoft"
             >
-              <div className="text-[10px] font-semibold text-azul-inst leading-tight">{d.nombre}</div>
+              {d.nombre}
             </button>
           ))}
         </div>
       </div>
+
+      <h2 className="font-display font-bold text-[14px] text-ink mb-2.5">Cronograma — {mesSel} {anioSel}</h2>
 
       <div className="flex items-center justify-between mt-4 mb-2">
         <h2 className="font-display font-bold text-[14px] text-ink">Vencimientos por dígito</h2>
