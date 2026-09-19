@@ -270,6 +270,7 @@ export default function DashboardScreen() {
 
   const [calculandoFv, setCalculandoFv] = useState(false)
   const [resultadoFv, setResultadoFv] = useState(null)
+  const [detalleAbierto, setDetalleAbierto] = useState(false)
   const [generandoImagenFv, setGenerandoImagenFv] = useState(false)
   const shareCardFvRef = useRef(null)
 
@@ -652,6 +653,18 @@ export default function DashboardScreen() {
                     </div>
                   </div>
 
+                  <button
+                    onClick={() => setDetalleAbierto((v) => !v)}
+                    className="w-full flex items-center justify-between text-[11.5px] font-semibold text-azul-inst bg-[#EAF1FA] px-3.5 py-2.5 rounded-xl"
+                  >
+                    {detalleAbierto ? 'Ocultar detalle de casillas' : 'Ver detalle completo de casillas'}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" style={{ transform: detalleAbierto ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>
+                      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+
+                  {detalleAbierto && (
+                  <>
                   <SeccionCasillas titulo="IGV VENTAS" filas={[
                     ['Ventas Netas Gravadas (Base)', '100', resultadoFv.casillas['100']],
                     ['Ventas Netas Gravadas (IGV)', '101', resultadoFv.casillas['101']],
@@ -692,6 +705,8 @@ export default function DashboardScreen() {
                     ['Saldo ITAN', '-', resultadoFv.casillas['_saldo_itan']],
                     ['Tributo a pagar por Renta', '304', resultadoFv.casillas['304'], true],
                   ]} />
+                  </>
+                  )}
 
                   {resultadoFv.detracciones?.n_comprobantes > 0 && (
                     <div className="text-[10.5px] text-[#8A6D00] bg-[#FBF1DD] rounded-lg p-2.5">

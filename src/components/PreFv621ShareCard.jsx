@@ -19,9 +19,10 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
     ['IGV Ventas', '101', c['101']],
     ['Descuento de ventas (IGV)', '103', c['103']],
     ['Compras — Base gravadas', '107', c['107']],
-    ['Compras — Crédito fiscal', '178', c['178']],
+    ['IGV Compras', '178', c['178']],
     [`Saldo a favor IGV (${mesAnteriorLabel || 'anterior'})`, '145', c['145']],
     ['Retenciones y percepciones IGV', '-', retencionesPercepcionesTotal],
+    ['Tributo a pagar IGV', '184', c['184']],
     ['Ingresos Netos (Renta)', '301', c['301']],
     ['Pago a cuenta Renta', '312', c['312']],
   ]
@@ -32,7 +33,10 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
         <div style={{ width: 38, height: 38, borderRadius: 10, background: '#0B3A60', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontFamily: 'Sora, sans-serif' }}>T+</div>
         <div>
           <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 15, color: '#152233' }}>Preliminar FV621</div>
-          <div style={{ fontSize: 11, color: '#68788A' }}>{empresaLabel} · {periodoLabel} · {fecha}</div>
+          <div style={{ fontSize: 12, color: '#0B3A60', fontWeight: 700 }}>
+            {empresaLabel} <span style={{ color: '#C3CEDA', fontWeight: 400 }}>·</span> <span style={{ color: '#1E5FA8' }}>{periodoLabel}</span>
+          </div>
+          <div style={{ fontSize: 9.5, color: '#9AA7B5', marginTop: 1 }}>{fecha}</div>
         </div>
       </div>
 
@@ -41,6 +45,9 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
           <div key={i} style={{ background: '#F7F9FB', borderRadius: 12, padding: 12, border: '1px solid #F0F3F7' }}>
             <div style={{ fontSize: 8.5, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3, lineHeight: 1.2 }}>{k.subtitulo}</div>
             <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 15, color: TONO_COLOR[k.tono] || '#152233' }}>{fmt(k.valor)}</div>
+            {k.titulo === 'Detracción sin confirmar depósito' && Number(k.valor) > 0 && (
+              <div style={{ fontSize: 7.5, color: '#8A6A00', fontWeight: 700, marginTop: 3 }}>(AFECTO A DETRACCIÓN)</div>
+            )}
           </div>
         ))}
       </div>
