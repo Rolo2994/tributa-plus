@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import { getTaxStatus, getVencimientos } from '../services/googleSheetsApi.js'
-import { listarArchivosSire, calcularPreFv621 } from '../services/sireApi.js'
+import { listarArchivosSire, calcularPreFv621, obtenerHistorialFv621 } from '../services/sireApi.js'
+import { obtenerEstadoWorkspace } from '../services/buzonApi.js'
 import { normalizeTaxRow } from '../utils/normalizeTaxRow.js'
 import { esCodigoAfp, calcularInteres, diasDeAtraso } from '../utils/interesDeuda.js'
 import { obtenerDigitoRuc } from '../utils/digitoRuc.js'
@@ -42,6 +43,15 @@ export default function DashboardScreen() {
   const [errorMsg, setErrorMsg] = useState('')
   const [vencCache, setVencCache] = useState({})
   const [empresaFiltro, setEmpresaFiltro] = useState(null)
+
+  // El filtro de empresa de este Dashboard sigue al RUC activo global —
+  // así no hay dos "empresa seleccionada" distintas y desincronizadas
+  // entre el resto de la app y esta pantalla. El usuario igual puede
+  // elegir "Todas las empresas" u otra desde el selector cuando la
+  // necesite; solo se resincroniza cuando el RUC activo global cambia.
+  useEffect(() => {
+    if (activeRuc) setEmpresaFiltro(activeRuc.ruc)
+  }, [activeRuc])
   const [vistaGrafico, setVistaGrafico] = useState('tributo')
   const [compartirOpen, setCompartirOpen] = useState(false)
   const [generandoImagen, setGenerandoImagen] = useState(false)
@@ -268,9 +278,19 @@ export default function DashboardScreen() {
       ? '1.0'
       : calcularCoeficiente(ingresosAnterior, impuestoAnterior)
 
+  const [pasoFv, setPasoFv] = useState(1) // 1: periodo/archivos, 2: régimen/renta, 3: saldos/créditos
   const [calculandoFv, setCalculandoFv] = useState(false)
   const [resultadoFv, setResultadoFv] = useState(null)
   const [detalleAbierto, setDetalleAbierto] = useState(false)
+  const [driveConectado, setDriveConectado] = useState(true) // optimista mientras carga, para no parpadear
+
+  useEffect(() => {
+    const wsId = localStorage.getItem('ezwork_workspace_id')
+    if (!wsId) return
+    obtenerEstadoWorkspace(wsId).then((res) => {
+      if (res.ok) setDriveConectado(!!res.drive_conectado)
+    }).catch(() => {})
+  }, [])
   const [generandoImagenFv, setGenerandoImagenFv] = useState(false)
   const shareCardFvRef = useRef(null)
 
@@ -297,6 +317,25 @@ export default function DashboardScreen() {
       setFileIdVentas(ventas[0]?.file_id || '')
       if (compras.length === 0) pushLog(`⚠ No hay ZIP de Compras "Propuesta" para ${periodoFv} — descárgalo desde SIRE (solo Propuesta sirve para el preliminar).`)
       if (ventas.length === 0) pushLog(`⚠ No hay ZIP de Ventas "Propuesta" para ${periodoFv} — descárgalo desde SIRE (solo Propuesta sirve para el preliminar).`)
+
+      // Autocompleta los saldos con lo que resultó del cálculo del mes
+      // anterior (si existe) — así no hay que volver a tipearlos cada
+      // mes. Siempre pisa con el dato encontrado: al cambiar de RUC o
+      // periodo es justo cuando se quiere el dato fresco de ese mes.
+      const anioAnt = mesFv === 1 ? anioFv - 1 : anioFv
+      const periodoAnterior = `${anioAnt}${String(mesAnteriorIdx).padStart(2, '0')}`
+      try {
+        const hist = await obtenerHistorialFv621(activeRuc.ruc, periodoAnterior)
+        if (hist.ok && hist.encontrado) {
+          const c = hist.casillas || {}
+          setSaldoFavorIgv(String(c['_saldo_favor_igv'] ?? 0))
+          setPercepcionesIgvAnterior(String(c['_percepciones_saldo_favor'] ?? 0))
+          setRetencionesIgvAnterior(String(c['_retenciones_saldo_favor'] ?? 0))
+          pushLog(`↻ Saldos autocompletados con el cálculo de ${mesAnteriorLabel} — revísalos antes de calcular.`)
+        }
+      } catch {
+        // Si falla, no pasa nada — el usuario los llena a mano como antes.
+      }
     } catch (err) {
       pushLog(`✗ Error al buscar archivos: ${err?.message || err}`)
     } finally {
@@ -305,7 +344,11 @@ export default function DashboardScreen() {
   }
 
   useEffect(() => {
-    if (tipoDashboard === 'pre-fv621' && activeRuc) buscarArchivosFv()
+    if (tipoDashboard === 'pre-fv621' && activeRuc) {
+      buscarArchivosFv()
+      setPasoFv(1)
+      setResultadoFv(null)
+    }
   }, [tipoDashboard, activeRuc]) // eslint-disable-line
 
   async function calcularFv() {
@@ -381,9 +424,40 @@ export default function DashboardScreen() {
     }
   }
 
+  function exportarCSVFv() {
+    if (!resultadoFv) return
+    const c = resultadoFv.casillas
+    const filas = [
+      ['Ventas Netas Gravadas', '100', c['100']],
+      ['Ventas Netas Gravadas (IGV)', '101', c['101']],
+      ['Descuentos de ventas (Base)', '102', c['102']],
+      ['Descuentos de ventas (IGV)', '103', c['103']],
+      ['Compras — Base gravadas', '107', c['107']],
+      ['IGV Compras', '178', c['178']],
+      [`Saldo a favor IGV (${mesAnteriorLabel})`, '145', c['145']],
+      ['Tributo a pagar IGV', '184', c['184']],
+      ['Ingresos Netos (Renta)', '301', c['301']],
+      ['Pago a cuenta Renta', '312', c['312']],
+      ['Tributo a pagar Renta', '304', c['304']],
+    ]
+    const header = ['Concepto', 'Casilla', 'Monto']
+    const lineas = filas.map(([c1, c2, v]) => [c1, c2, (Number(v) || 0).toFixed(2)].join(','))
+    const csv = [header.join(','), ...lineas].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `pre_fv621_${activeRuc.ruc}_${periodoFv}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    pushLog('Descargado CSV del Pre FV621')
+    setCompartirOpen(false)
+  }
+
   function alCompartir() {
-    if (tipoDashboard === 'tributario') setCompartirOpen(true)
-    else compartirImagenFv()
+    setCompartirOpen(true)
   }
 
   return (
@@ -523,102 +597,176 @@ export default function DashboardScreen() {
             <div className="text-center text-muted text-[12px] py-10">Elige un RUC arriba para comenzar.</div>
           ) : (
             <div className="space-y-3.5">
-              <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
-                <span className="block text-[11px] font-bold mb-1.5">Periodo — {activeRuc.razonSocial}</span>
-                <div className="flex gap-2 mb-3">
-                  <select value={anioFv} onChange={(e) => setAnioFv(Number(e.target.value))}
-                    className="flex-1 border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
-                    {ANIOS_SIRE.map((a) => <option key={a} value={a}>{a}</option>)}
-                  </select>
-                  <select value={mesFv} onChange={(e) => setMesFv(Number(e.target.value))}
-                    className="flex-1 border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
-                    {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
-                  <button onClick={buscarArchivosFv} disabled={buscandoFv}
-                    className="px-3.5 py-2 rounded-lg bg-azul-inst text-white text-[11.5px] font-semibold disabled:opacity-60">
-                    {buscandoFv ? '…' : 'Buscar'}
+              {!driveConectado && (
+                <div className="bg-[#FCE9EB] text-rojo-sunat text-[11px] rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+                  <span>Tu Google Drive no está conectado — Pre FV621 necesita leer los ZIP desde ahí.</span>
+                  <button onClick={() => goScreen('settings')} className="font-bold underline whitespace-nowrap">Ir a Ajustes</button>
+                </div>
+              )}
+              {/* ── Indicador de pasos ── */}
+              <div className="flex items-center gap-1.5">
+                {[
+                  { n: 1, label: 'Periodo' },
+                  { n: 2, label: 'Régimen' },
+                  { n: 3, label: 'Saldos' },
+                ].map((p, i) => (
+                  <React.Fragment key={p.n}>
+                    <button
+                      onClick={() => p.n < pasoFv && setPasoFv(p.n)}
+                      disabled={p.n >= pasoFv}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[10.5px] font-semibold ${
+                        p.n === pasoFv ? 'bg-azul-dark text-white'
+                        : p.n < pasoFv ? 'bg-[#EAF1FA] text-azul-inst'
+                        : 'bg-[#F1F4F8] text-muted'
+                      }`}
+                    >
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] ${
+                        p.n === pasoFv ? 'bg-white/20' : p.n < pasoFv ? 'bg-azul-inst text-white' : 'bg-white'
+                      }`}>
+                        {p.n < pasoFv ? '✓' : p.n}
+                      </span>
+                      {p.label}
+                    </button>
+                    {i < 2 && <div className="flex-1 h-[1.5px] bg-[#E4E9F0]" />}
+                  </React.Fragment>
+                ))}
+              </div>
+
+              {/* ── Paso 1: Periodo y archivos ── */}
+              {pasoFv === 1 && (
+                <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
+                  <span className="block text-[11px] font-bold mb-1.5">Periodo — {activeRuc.razonSocial}</span>
+                  <div className="flex gap-2 mb-3">
+                    <select value={anioFv} onChange={(e) => setAnioFv(Number(e.target.value))}
+                      className="flex-1 border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
+                      {ANIOS_SIRE.map((a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                    <select value={mesFv} onChange={(e) => setMesFv(Number(e.target.value))}
+                      className="flex-1 border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
+                      {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+                    </select>
+                    <button onClick={buscarArchivosFv} disabled={buscandoFv}
+                      className="px-3.5 py-2 rounded-lg bg-azul-inst text-white text-[11.5px] font-semibold disabled:opacity-60">
+                      {buscandoFv ? '…' : 'Buscar'}
+                    </button>
+                  </div>
+
+                  <div className="text-[10.5px] text-muted mb-1">ZIP de Compras encontrado</div>
+                  {archivosCompras.length === 0 ? (
+                    <div className="text-[11px] text-rojo-sunat mb-2.5">
+                      Ninguno —{' '}
+                      <button onClick={() => goScreen('sire')} className="underline font-semibold">descárgalo desde SIRE</button>
+                    </div>
+                  ) : (
+                    <>
+                      <select value={fileIdCompras} onChange={(e) => setFileIdCompras(e.target.value)}
+                        className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
+                        {archivosCompras.map((a) => (
+                          <option key={a.file_id} value={a.file_id}>{a.nombre} ({a.opcion})</option>
+                        ))}
+                      </select>
+                      <AvisoAntiguedad archivo={archivosCompras.find((a) => a.file_id === fileIdCompras)} onRedescargar={() => goScreen('sire')} />
+                    </>
+                  )}
+
+                  <div className="text-[10.5px] text-muted mb-1 mt-2.5">ZIP de Ventas encontrado</div>
+                  {archivosVentas.length === 0 ? (
+                    <div className="text-[11px] text-rojo-sunat">
+                      Ninguno —{' '}
+                      <button onClick={() => goScreen('sire')} className="underline font-semibold">descárgalo desde SIRE</button>
+                    </div>
+                  ) : (
+                    <>
+                      <select value={fileIdVentas} onChange={(e) => setFileIdVentas(e.target.value)}
+                        className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
+                        {archivosVentas.map((a) => (
+                          <option key={a.file_id} value={a.file_id}>{a.nombre} ({a.opcion})</option>
+                        ))}
+                      </select>
+                      <AvisoAntiguedad archivo={archivosVentas.find((a) => a.file_id === fileIdVentas)} onRedescargar={() => goScreen('sire')} />
+                    </>
+                  )}
+
+                  <button
+                    onClick={() => setPasoFv(2)}
+                    disabled={!fileIdCompras || !fileIdVentas}
+                    className="w-full mt-3.5 bg-azul-dark disabled:opacity-40 text-white text-[12.5px] font-bold py-2.5 rounded-xl"
+                  >
+                    Siguiente →
                   </button>
                 </div>
+              )}
 
-                <div className="text-[10.5px] text-muted mb-1">ZIP de Compras encontrado</div>
-                {archivosCompras.length === 0 ? (
-                  <div className="text-[11px] text-rojo-sunat mb-2.5">
-                    Ninguno —{' '}
-                    <button onClick={() => goScreen('sire')} className="underline font-semibold">descárgalo desde SIRE</button>
-                  </div>
-                ) : (
-                  <select value={fileIdCompras} onChange={(e) => setFileIdCompras(e.target.value)}
-                    className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px] mb-2.5">
-                    {archivosCompras.map((a) => (
-                      <option key={a.file_id} value={a.file_id}>{a.nombre} ({a.opcion})</option>
-                    ))}
+              {/* ── Paso 2: Régimen y Renta ── */}
+              {pasoFv === 2 && (
+                <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
+                  <div className="text-[12px] font-bold mb-2.5">Régimen tributario</div>
+                  <select value={regimen} onChange={(e) => setRegimen(e.target.value)}
+                    className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px] mb-3">
+                    {REGIMENES.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
-                )}
 
-                <div className="text-[10.5px] text-muted mb-1">ZIP de Ventas encontrado</div>
-                {archivosVentas.length === 0 ? (
-                  <div className="text-[11px] text-rojo-sunat">
-                    Ninguno —{' '}
-                    <button onClick={() => goScreen('sire')} className="underline font-semibold">descárgalo desde SIRE</button>
+                  {regimen.startsWith('MYPE') && (
+                    <label className="flex items-center gap-2 text-[11.5px] mb-2.5">
+                      <input type="checkbox" checked={supero300uit} onChange={(e) => setSupero300uit(e.target.checked)} />
+                      ¿Ingresos acumulados del ejercicio ya superaron las 300 UIT?
+                    </label>
+                  )}
+
+                  {usaCoeficiente && (
+                    <div className="mb-2.5 space-y-2">
+                      <div className="text-[10.5px] text-muted">Datos ANUALES del ejercicio anterior, para el coeficiente:</div>
+                      <CampoNumero label="Ingresos netos del ejercicio anterior (S/)" value={ingresosAnterior} onChange={setIngresosAnterior} />
+                      <CampoNumero label="Impuesto calculado del ejercicio anterior (S/)" value={impuestoAnterior} onChange={setImpuestoAnterior} />
+                    </div>
+                  )}
+
+                  <div className="text-[11px] font-semibold text-verde mb-1">
+                    Tasa de Renta aplicada: {tasaRenta}%
                   </div>
-                ) : (
-                  <select value={fileIdVentas} onChange={(e) => setFileIdVentas(e.target.value)}
-                    className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
-                    {archivosVentas.map((a) => (
-                      <option key={a.file_id} value={a.file_id}>{a.nombre} ({a.opcion})</option>
-                    ))}
-                  </select>
-                )}
-              </div>
 
-              <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
-                <div className="text-[12px] font-bold mb-2.5">Régimen tributario</div>
-                <select value={regimen} onChange={(e) => setRegimen(e.target.value)}
-                  className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px] mb-3">
-                  {REGIMENES.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-
-                {regimen.startsWith('MYPE') && (
-                  <label className="flex items-center gap-2 text-[11.5px] mb-2.5">
-                    <input type="checkbox" checked={supero300uit} onChange={(e) => setSupero300uit(e.target.checked)} />
-                    ¿Ingresos acumulados del ejercicio ya superaron las 300 UIT?
-                  </label>
-                )}
-
-                {usaCoeficiente && (
-                  <div className="mb-2.5 space-y-2">
-                    <div className="text-[10.5px] text-muted">Datos ANUALES del ejercicio anterior, para el coeficiente:</div>
-                    <CampoNumero label="Ingresos netos del ejercicio anterior (S/)" value={ingresosAnterior} onChange={setIngresosAnterior} />
-                    <CampoNumero label="Impuesto calculado del ejercicio anterior (S/)" value={impuestoAnterior} onChange={setImpuestoAnterior} />
+                  <div className="flex gap-2 mt-3.5">
+                    <button onClick={() => setPasoFv(1)} className="flex-1 bg-[#F1F4F8] text-ink text-[12.5px] font-bold py-2.5 rounded-xl">
+                      ← Atrás
+                    </button>
+                    <button onClick={() => setPasoFv(3)} className="flex-1 bg-azul-dark text-white text-[12.5px] font-bold py-2.5 rounded-xl">
+                      Siguiente →
+                    </button>
                   </div>
-                )}
-
-                <div className="text-[11px] font-semibold text-verde mb-3">
-                  Tasa de Renta aplicada: {tasaRenta}%
                 </div>
+              )}
 
-                <div className="text-[12px] font-bold mb-2.5 pt-2 border-t border-[#F0F3F7]">Datos que no vienen en el ZIP</div>
-                <div className="space-y-2">
-                  <CampoNumero label="% de prorrata IGV (100 si no aplica)" value={prorrataPct} onChange={setProrrataPct} />
-                  <CampoNumero label={`Saldo a favor IGV (${mesAnteriorLabel}) (S/)`} value={saldoFavorIgv} onChange={setSaldoFavorIgv} />
-                  <CampoNumero label="Crédito fiscal especial (S/)" value={creditoEspecial} onChange={setCreditoEspecial} />
-                  <CampoNumero label={`Percepciones IGV no aplicadas (${mesAnteriorLabel}) (S/)`} value={percepcionesIgvAnterior} onChange={setPercepcionesIgvAnterior} />
-                  <CampoNumero label={`Percepciones IGV del periodo (${periodoFvLabel}) (S/)`} value={percepcionesIgvActual} onChange={setPercepcionesIgvActual} />
-                  <CampoNumero label={`Retenciones IGV no aplicadas (${mesAnteriorLabel}) (S/)`} value={retencionesIgvAnterior} onChange={setRetencionesIgvAnterior} />
-                  <CampoNumero label={`Retenciones IGV del periodo (${periodoFvLabel}) (S/)`} value={retencionesIgvActual} onChange={setRetencionesIgvActual} />
-                  <CampoNumero label="Pagos a cuenta Renta en exceso (S/)" value={pagosCuentaExceso} onChange={setPagosCuentaExceso} />
-                  <CampoNumero label="Saldo a favor de Renta (S/)" value={saldoFavorRenta} onChange={setSaldoFavorRenta} />
-                  <CampoNumero label="Saldo ITAN (S/)" value={saldoItan} onChange={setSaldoItan} />
+              {/* ── Paso 3: Saldos y créditos (todo lo que no viene en el ZIP) ── */}
+              {pasoFv === 3 && (
+                <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
+                  <div className="text-[12px] font-bold mb-2.5">Saldos y créditos — datos que no vienen en el ZIP</div>
+                  <div className="space-y-2">
+                    <CampoNumero label="% de prorrata IGV (100 si no aplica)" value={prorrataPct} onChange={setProrrataPct} />
+                    <CampoNumero label={`Saldo a favor IGV (${mesAnteriorLabel}) (S/)`} value={saldoFavorIgv} onChange={setSaldoFavorIgv} />
+                    <CampoNumero label="Crédito fiscal especial (S/)" value={creditoEspecial} onChange={setCreditoEspecial} />
+                    <CampoNumero label={`Percepciones IGV no aplicadas (${mesAnteriorLabel}) (S/)`} value={percepcionesIgvAnterior} onChange={setPercepcionesIgvAnterior} />
+                    <CampoNumero label={`Percepciones IGV del periodo (${periodoFvLabel}) (S/)`} value={percepcionesIgvActual} onChange={setPercepcionesIgvActual} />
+                    <CampoNumero label={`Retenciones IGV no aplicadas (${mesAnteriorLabel}) (S/)`} value={retencionesIgvAnterior} onChange={setRetencionesIgvAnterior} />
+                    <CampoNumero label={`Retenciones IGV del periodo (${periodoFvLabel}) (S/)`} value={retencionesIgvActual} onChange={setRetencionesIgvActual} />
+                    <CampoNumero label="Pagos a cuenta Renta en exceso (S/)" value={pagosCuentaExceso} onChange={setPagosCuentaExceso} />
+                    <CampoNumero label="Saldo a favor de Renta (S/)" value={saldoFavorRenta} onChange={setSaldoFavorRenta} />
+                    <CampoNumero label="Saldo ITAN (S/)" value={saldoItan} onChange={setSaldoItan} />
+                  </div>
+
+                  <div className="flex gap-2 mt-3.5">
+                    <button onClick={() => setPasoFv(2)} className="flex-1 bg-[#F1F4F8] text-ink text-[12.5px] font-bold py-2.5 rounded-xl">
+                      ← Atrás
+                    </button>
+                    <button
+                      onClick={calcularFv}
+                      disabled={calculandoFv || !fileIdCompras || !fileIdVentas || !driveConectado}
+                      className="flex-[1.4] bg-verde disabled:opacity-60 text-white text-[12.5px] font-bold py-2.5 rounded-xl"
+                    >
+                      {!driveConectado ? 'Conecta tu Drive primero' : calculandoFv ? 'Calculando…' : 'Calcular preliminar 621'}
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              <button
-                onClick={calcularFv}
-                disabled={calculandoFv || !fileIdCompras || !fileIdVentas}
-                className="w-full bg-verde disabled:opacity-60 text-white text-[13px] font-bold py-3 rounded-2xl"
-              >
-                {calculandoFv ? 'Calculando…' : 'Calcular preliminar 621'}
-              </button>
+              )}
 
               {resultadoFv && (
                 <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4 space-y-3">
@@ -721,14 +869,16 @@ export default function DashboardScreen() {
       )}
       </div>
 
-      {/* ── Sheet: 3 opciones de compartir (solo Tributario) ── */}
+      {/* ── Sheet: opciones de compartir (varían según el tipo de dashboard) ── */}
       {compartirOpen && (
-        <div className="absolute inset-0 z-[85] bg-black/55 flex items-end" onClick={() => !generandoImagen && setCompartirOpen(false)}>
+        <div className="absolute inset-0 z-[85] bg-black/55 flex items-end" onClick={() => !(generandoImagen || generandoImagenFv) && setCompartirOpen(false)}>
           <div className="w-full bg-white rounded-t-[24px] p-5" onClick={(e) => e.stopPropagation()}>
             <div className="w-[38px] h-1 bg-[#DCE3EA] rounded mx-auto mb-4" />
-            <div className="font-display font-bold text-[15px] text-ink mb-4">Compartir dashboard</div>
+            <div className="font-display font-bold text-[15px] text-ink mb-4">
+              {tipoDashboard === 'tributario' ? 'Compartir dashboard' : 'Compartir Pre FV621'}
+            </div>
 
-            <button onClick={exportarCSV} className="w-full flex items-center gap-3 text-left px-3.5 py-3.5 rounded-2xl mb-2 bg-[#F7F9FB]">
+            <button onClick={tipoDashboard === 'tributario' ? exportarCSV : exportarCSVFv} className="w-full flex items-center gap-3 text-left px-3.5 py-3.5 rounded-2xl mb-2 bg-[#F7F9FB]">
               <div className="w-10 h-10 rounded-xl bg-[#EAF1FA] text-azul-inst flex items-center justify-center text-[16px]">📄</div>
               <div>
                 <div className="font-semibold text-[13px] text-ink">Descargar CSV</div>
@@ -736,23 +886,31 @@ export default function DashboardScreen() {
               </div>
             </button>
 
-            <button onClick={compartirTexto} className="w-full flex items-center gap-3 text-left px-3.5 py-3.5 rounded-2xl mb-2 bg-[#F7F9FB]">
-              <div className="w-10 h-10 rounded-xl bg-[#EAF6EF] text-verde flex items-center justify-center text-[16px]">💬</div>
-              <div>
-                <div className="font-semibold text-[13px] text-ink">Enviar resumen (texto)</div>
-                <div className="text-[10.5px] text-muted">Mensaje de WhatsApp con los datos principales</div>
-              </div>
-            </button>
+            {tipoDashboard === 'tributario' && (
+              <button onClick={compartirTexto} className="w-full flex items-center gap-3 text-left px-3.5 py-3.5 rounded-2xl mb-2 bg-[#F7F9FB]">
+                <div className="w-10 h-10 rounded-xl bg-[#EAF6EF] text-verde flex items-center justify-center text-[16px]">💬</div>
+                <div>
+                  <div className="font-semibold text-[13px] text-ink">Enviar resumen (texto)</div>
+                  <div className="text-[10.5px] text-muted">Mensaje de WhatsApp con los datos principales</div>
+                </div>
+              </button>
+            )}
 
-            <button onClick={compartirImagen} disabled={generandoImagen} className="w-full flex items-center gap-3 text-left px-3.5 py-3.5 rounded-2xl bg-[#F7F9FB] disabled:opacity-50">
+            <button
+              onClick={tipoDashboard === 'tributario' ? compartirImagen : compartirImagenFv}
+              disabled={tipoDashboard === 'tributario' ? generandoImagen : generandoImagenFv}
+              className="w-full flex items-center gap-3 text-left px-3.5 py-3.5 rounded-2xl bg-[#F7F9FB] disabled:opacity-50"
+            >
               <div className="w-10 h-10 rounded-xl bg-[#FBF1DD] text-[#8A6A00] flex items-center justify-center text-[16px]">🖼</div>
               <div>
-                <div className="font-semibold text-[13px] text-ink">{generandoImagen ? 'Generando imagen…' : 'Enviar dashboard (imagen)'}</div>
-                <div className="text-[10.5px] text-muted">KPIs + tabla como imagen, lista para WhatsApp</div>
+                <div className="font-semibold text-[13px] text-ink">
+                  {(tipoDashboard === 'tributario' ? generandoImagen : generandoImagenFv) ? 'Generando imagen…' : 'Enviar como imagen'}
+                </div>
+                <div className="text-[10.5px] text-muted">Lista para enviar por WhatsApp</div>
               </div>
             </button>
 
-            <button onClick={() => setCompartirOpen(false)} disabled={generandoImagen} className="w-full mt-3 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">
+            <button onClick={() => setCompartirOpen(false)} disabled={generandoImagen || generandoImagenFv} className="w-full mt-3 py-3 rounded-xl bg-[#F1F4F8] text-ink font-semibold text-[12.5px]">
               Cancelar
             </button>
           </div>
@@ -775,6 +933,18 @@ export default function DashboardScreen() {
           />
         )}
       </div>
+    </div>
+  )
+}
+
+function AvisoAntiguedad({ archivo, onRedescargar }) {
+  if (!archivo?.fecha_subida) return null
+  const dias = Math.floor((Date.now() - new Date(archivo.fecha_subida).getTime()) / 86400000)
+  if (dias < 5) return null
+  return (
+    <div className="text-[10.5px] text-[#8A6A00] bg-[#FBF1DD] rounded-lg px-2.5 py-2 mt-1.5 flex items-center justify-between gap-2">
+      <span>Este archivo se descargó hace {dias} días.</span>
+      <button onClick={onRedescargar} className="font-semibold underline whitespace-nowrap">Descargar uno reciente</button>
     </div>
   )
 }

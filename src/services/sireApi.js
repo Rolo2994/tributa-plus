@@ -8,11 +8,15 @@ function wsHeaders(extra = {}) {
 
 // ── Ejecución de la descarga SIRE ──────────────────────────────────
 
-export async function ejecutarSire({ ruc, registro, opcion, periodos, formato }) {
+// Recibe el payload completo tal cual (ruc | rucs | grupo, + registro,
+// opcion, periodos, formato) y lo manda sin filtrar campos — antes
+// esta función solo aceptaba "ruc" explícito y perdía "rucs"/"grupo"
+// al desestructurar.
+export async function ejecutarSire(payload) {
   const res = await fetch(`${BASE_URL}/ejecutar-sire`, {
     method: 'POST',
     headers: wsHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify({ ruc, registro, opcion, periodos, formato }),
+    body: JSON.stringify(payload),
   })
   return res.json()
 }
@@ -43,6 +47,14 @@ export async function calcularPreFv621(payload) {
     method: 'POST',
     headers: wsHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload),
+  })
+  return res.json()
+}
+
+export async function obtenerHistorialFv621(ruc, periodo) {
+  const query = new URLSearchParams({ ruc, periodo }).toString()
+  const res = await fetch(`${BASE_URL}/pre-fv621/historial?${query}`, {
+    headers: wsHeaders(),
   })
   return res.json()
 }

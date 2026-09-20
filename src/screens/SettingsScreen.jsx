@@ -1,8 +1,14 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import PinSecurityCard from '../components/PinSecurityCard.jsx'
 import WorkspaceCard from '../components/WorkspaceCard.jsx'
 import CambiarClaveCard from '../components/CambiarClaveCard.jsx'
+
+const PESTANAS = [
+  { id: 'cuenta', label: 'Mi cuenta' },
+  { id: 'conexion', label: 'Conexión de datos' },
+  { id: 'preferencias', label: 'Preferencias' },
+]
 
 export default function SettingsScreen() {
   const { 
@@ -17,78 +23,109 @@ export default function SettingsScreen() {
     suscribirsePush,
   } = useApp()
 
+  const [tab, setTab] = useState('cuenta')
   const TIPOS_VENCIMIENTO = ['SIRE', 'DJ Mensual', 'DJ Anual']
 
   return (
     <div className="flex-1 overflow-y-auto px-4 pt-4 pb-[130px]">
-      <h2 className="font-bold text-[14px] mb-2.5">Filtros de la lista de RUCs</h2>
+      <h2 className="font-bold text-[14px] mb-2.5">Ajustes</h2>
 
-      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
-        <div className="font-bold text-[12.5px] mb-2">Grupo</div>
-        <div className="flex flex-wrap gap-1.5">
-          {availableGroups && Array.isArray(availableGroups) ? (
-            availableGroups.map((g) => (
-              <button 
-                key={g} 
-                onClick={() => { setGroupFilter(g); pushLog(`Filtro: ${g}`) }}
-                className={`text-[11.5px] px-3.5 py-2 rounded-full border ${groupFilter === g ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
-              >
-                {g}
-              </button>
-            ))
-          ) : (
-            <span className="text-xs text-gray-400">Cargando grupos...</span>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
-        <div className="font-bold text-[12.5px] mb-2">Tipo de vencimiento</div>
-        <div className="flex bg-gray-100 rounded-[11px] p-[3px]">
-          {TIPOS_VENCIMIENTO.map((t) => (
-            <button 
-              key={t} 
-              onClick={() => { setVencimientoTipo(t); pushLog(`Vencimiento: ${t}`) }}
-              className={`flex-1 py-2 text-[11.5px] rounded-[9px] ${vencimientoTipo === t ? 'bg-white shadow' : 'text-gray-500'}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <PinSecurityCard />
-
-      <WorkspaceCard />
-      <CambiarClaveCard />
-
-      <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
-        <div className="font-bold text-[12.5px] mb-1">Notificaciones</div>
-        <div className="text-[10.5px] text-muted mb-2.5">
-          {notifPermission === 'granted' && '✓ Activadas — recibirás avisos de tus recordatorios.'}
-          {notifPermission === 'denied' && 'Bloqueadas por el navegador. Actívalas manualmente en Ajustes del sitio.'}
-          {notifPermission === 'default' && 'Aún no activadas.'}
-        </div>
-        {notifPermission !== 'denied' && (
+      {/* ── Sub-secciones — cada una agrupa cosas que se tocan por motivos distintos ── */}
+      <div className="flex bg-gray-100 rounded-xl p-[3px] mb-3.5">
+        {PESTANAS.map((p) => (
           <button
-            onClick={async () => {
-              if (notifPermission === 'default') await requestNotifPermission()
-              try {
-                if (typeof suscribirsePush === 'function') {
-                  await suscribirsePush()
-                  pushLog('✓ Dispositivo registrado para notificaciones')
-                }
-              } catch (err) {
-                console.error(err)
-                pushLog('✗ No se pudo registrar el dispositivo para notificaciones')
-              }
-            }}
-            className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px]"
+            key={p.id}
+            onClick={() => setTab(p.id)}
+            className={`flex-1 py-2 text-[11px] font-semibold rounded-[9px] ${tab === p.id ? 'bg-white text-azul-inst shadow' : 'text-gray-500'}`}
           >
-            {notifPermission === 'granted' ? '🔁 Registrar este dispositivo' : '🔔 Activar notificaciones'}
+            {p.label}
           </button>
-        )}
+        ))}
       </div>
+
+      {tab === 'cuenta' && (
+        <>
+          <PinSecurityCard />
+          <CambiarClaveCard />
+        </>
+      )}
+
+      {tab === 'conexion' && (
+        <>
+          <div className="text-[10.5px] text-muted mb-2.5 px-1">
+            Esto normalmente se configura una sola vez, al empezar a usar Tributa+.
+          </div>
+          <WorkspaceCard />
+        </>
+      )}
+
+      {tab === 'preferencias' && (
+        <>
+          <h3 className="font-bold text-[12.5px] mb-2 mt-1">Filtros de la lista de RUCs</h3>
+
+          <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
+            <div className="font-bold text-[12.5px] mb-2">Grupo</div>
+            <div className="flex flex-wrap gap-1.5">
+              {availableGroups && Array.isArray(availableGroups) ? (
+                availableGroups.map((g) => (
+                  <button 
+                    key={g} 
+                    onClick={() => { setGroupFilter(g); pushLog(`Filtro: ${g}`) }}
+                    className={`text-[11.5px] px-3.5 py-2 rounded-full border ${groupFilter === g ? 'bg-blue-600 text-white' : 'bg-gray-100'}`}
+                  >
+                    {g}
+                  </button>
+                ))
+              ) : (
+                <span className="text-xs text-gray-400">Cargando grupos...</span>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
+            <div className="font-bold text-[12.5px] mb-2">Tipo de vencimiento</div>
+            <div className="flex bg-gray-100 rounded-[11px] p-[3px]">
+              {TIPOS_VENCIMIENTO.map((t) => (
+                <button 
+                  key={t} 
+                  onClick={() => { setVencimientoTipo(t); pushLog(`Vencimiento: ${t}`) }}
+                  className={`flex-1 py-2 text-[11.5px] rounded-[9px] ${vencimientoTipo === t ? 'bg-white shadow' : 'text-gray-500'}`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
+            <div className="font-bold text-[12.5px] mb-1">Notificaciones</div>
+            <div className="text-[10.5px] text-muted mb-2.5">
+              {notifPermission === 'granted' && '✓ Activadas — recibirás avisos de tus recordatorios.'}
+              {notifPermission === 'denied' && 'Bloqueadas por el navegador. Actívalas manualmente en Ajustes del sitio.'}
+              {notifPermission === 'default' && 'Aún no activadas.'}
+            </div>
+            {notifPermission !== 'denied' && (
+              <button
+                onClick={async () => {
+                  if (notifPermission === 'default') await requestNotifPermission()
+                  try {
+                    if (typeof suscribirsePush === 'function') {
+                      await suscribirsePush()
+                      pushLog('✓ Dispositivo registrado para notificaciones')
+                    }
+                  } catch (err) {
+                    console.error(err)
+                    pushLog('✗ No se pudo registrar el dispositivo para notificaciones')
+                  }
+                }}
+                className="w-full py-2.5 rounded-xl bg-azul-inst text-white font-semibold text-[12px]"
+              >
+                {notifPermission === 'granted' ? '🔁 Registrar este dispositivo' : '🔔 Activar notificaciones'}
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   )
 }

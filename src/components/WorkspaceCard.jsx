@@ -6,6 +6,19 @@ import {
 } from '../services/buzonApi.js'
 import { cerrarSesion } from '../utils/sesion.js'
 
+function PasoStatus({ hecho, numero, label }) {
+  return (
+    <div className="flex items-center gap-2 mb-1">
+      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${
+        hecho ? 'bg-verde text-white' : 'bg-[#F1F4F8] text-muted border border-bordersoft'
+      }`}>
+        {hecho ? '✓' : numero}
+      </span>
+      <span className={`text-[11px] font-semibold ${hecho ? 'text-verde' : 'text-muted'}`}>{label}</span>
+    </div>
+  )
+}
+
 export default function WorkspaceCard() {
   const { pushLog, sincronizarDatos } = useApp()
   const [wsId, setWsId] = useState(() => localStorage.getItem('ezwork_workspace_id') || '')
@@ -15,6 +28,7 @@ export default function WorkspaceCard() {
   const [driveConectado, setDriveConectado] = useState(false)
   const [guardandoSheet, setGuardandoSheet] = useState(false)
   const [guardandoCarpeta, setGuardandoCarpeta] = useState(false)
+  const [ayudaAbierta, setAyudaAbierta] = useState(false)
 
   async function inicializar() {
     setCargando(true)
@@ -94,6 +108,10 @@ export default function WorkspaceCard() {
     window.location.href = urlConectarDrive(wsId)
   }
 
+  const paso1Hecho = !!appsScriptUrl
+  const paso2Hecho = driveConectado
+  const paso3Hecho = !!nombreCarpeta && driveConectado
+
   return (
     <div className="bg-white rounded-2xl p-3.5 mb-2.5 shadow-sm">
       <div className="font-bold text-[12.5px] mb-2.5">Cuenta de BuzónPDF</div>
@@ -102,10 +120,35 @@ export default function WorkspaceCard() {
         <div className="text-[11px] text-muted py-2">Cargando…</div>
       ) : (
         <div className="space-y-3">
+          {/* ── Checklist de progreso — para saber de un vistazo qué falta ── */}
+          <div className="bg-[#F7F9FB] rounded-xl p-2.5 mb-1">
+            <PasoStatus hecho={paso1Hecho} numero="1" label="Conectar tu Google Sheet" />
+            <PasoStatus hecho={paso2Hecho} numero="2" label="Conectar tu Google Drive" />
+            <PasoStatus hecho={paso3Hecho} numero="3" label="Nombrar tu carpeta de Drive" />
+          </div>
+
           <div>
-            <div className="text-[10.5px] text-muted mb-1.5">
-              1. Tu Google Sheet (URL de Apps Script, la que termina en /exec)
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="text-[10.5px] text-muted">
+                1. Tu Google Sheet (URL de Apps Script, la que termina en /exec)
+              </div>
+              <button
+                onClick={() => setAyudaAbierta((v) => !v)}
+                className="text-[10px] font-semibold text-azul-inst flex-shrink-0 ml-2"
+              >
+                {ayudaAbierta ? 'Ocultar ayuda' : '¿Cómo la consigo?'}
+              </button>
             </div>
+
+            {ayudaAbierta && (
+              <div className="text-[10.5px] text-ink bg-[#EAF1FA] rounded-lg p-2.5 mb-2 leading-relaxed">
+                Abre tu Google Sheet → menú <b>Extensiones → Apps Script</b> → botón{' '}
+                <b>Implementar → Nueva implementación</b> → tipo <b>"Aplicación web"</b> → copia la
+                URL que te muestra (termina en <b>/exec</b>) y pégala aquí abajo. Si nunca hiciste
+                esto, pídele el enlace a quien te configuró tu hoja de cálculo.
+              </div>
+            )}
+
             <input
               type="text"
               value={appsScriptUrl}

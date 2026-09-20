@@ -30,7 +30,7 @@ const SCREENS = {
 const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'buzon-ejecutar', 'ajustes-workspace'])
 
 const TITULOS = {
-  home: 'RUCs', alerts: 'Alertas', inicio: 'Vencimientos', dashboard: 'Dashboard tributario',
+  home: 'RUCs', alerts: 'Alertas', inicio: 'Inicio', dashboard: 'Dashboard tributario',
   buzon: 'Buzón PDF', validez: 'Validez CP', detracc: 'Detracciones', sire: 'SIRE', settings: 'Ajustes',
   'buzon-ejecutar': 'Ejecutar Buzón PDF', 'ajustes-workspace': 'Ajustes de tu cuenta',
 }

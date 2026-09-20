@@ -45,7 +45,7 @@ const PreFv621ShareCard = forwardRef(function PreFv621ShareCard({ empresaLabel, 
           <div key={i} style={{ background: '#F7F9FB', borderRadius: 12, padding: 12, border: '1px solid #F0F3F7' }}>
             <div style={{ fontSize: 8.5, color: '#68788A', textTransform: 'uppercase', fontWeight: 700, marginBottom: 3, lineHeight: 1.2 }}>{k.subtitulo}</div>
             <div style={{ fontFamily: 'Sora, sans-serif', fontWeight: 800, fontSize: 15, color: TONO_COLOR[k.tono] || '#152233' }}>{fmt(k.valor)}</div>
-            {k.titulo === 'Detracción sin confirmar depósito' && Number(k.valor) > 0 && (
+            {k.titulo === 'Detracción sin confirmar depósito' && (
               <div style={{ fontSize: 7.5, color: '#8A6A00', fontWeight: 700, marginTop: 3 }}>(AFECTO A DETRACCIÓN)</div>
             )}
           </div>

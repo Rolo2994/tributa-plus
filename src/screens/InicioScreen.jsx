@@ -130,7 +130,7 @@ export default function InicioScreen() {
             <button
               key={a.id}
               onClick={() => goScreen(a.id)}
-              className="flex-shrink-0 w-[108px] bg-white rounded-xl border border-[#F0F3F7] shadow-card p-2.5 text-left"
+              className="md:hidden flex-shrink-0 w-[108px] bg-white rounded-xl border border-[#F0F3F7] shadow-card p-2.5 text-left"
             >
               <div className="text-[16px] leading-none mb-1">{a.icon}</div>
               <div className="text-[10px] font-semibold text-ink leading-tight">{a.label}</div>

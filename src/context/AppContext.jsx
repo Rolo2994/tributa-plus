@@ -8,8 +8,22 @@ import { suscribirsePush } from '../services/pushApi.js'
 
 const AppContext = createContext(null)
 
+const RUCS_CACHE_KEY = 'tributaplus_rucs_cache'
+
+function leerRucsCache() {
+  try {
+    const raw = localStorage.getItem(RUCS_CACHE_KEY)
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
+  }
+}
+
 export function AppProvider({ children }) {
-  const [rucs, setRucs] = useState([])
+  // Arranca con lo último que se sincronizó (si hay), en vez de vacío —
+  // así la pantalla muestra algo de inmediato mientras se actualiza en
+  // segundo plano, en vez de "Sincronizando..." en cada recarga.
+  const [rucs, setRucs] = useState(() => leerRucsCache())
   const [tributos, setTributos] = useState([])
   const { permission: notifPermission, requestPermission: requestNotifPermission } = useReminders(rucs)
   const [syncing, setSyncing] = useState(false)
@@ -42,7 +56,31 @@ export function AppProvider({ children }) {
     })
   }, [])
 
-  const goScreen = useCallback((id) => setCurrentScreen(id), [])
+  // Cada cambio de pantalla queda registrado en el historial del
+  // navegador. Así, el botón/gesto de "atrás" de Android (o el botón
+  // atrás del navegador en escritorio) navega DENTRO de la app en vez
+  // de cerrarla — solo cuando ya no queda ningún "atrás" interno, el
+  // gesto hace lo normal (salir).
+  const goScreen = useCallback((id) => {
+    setCurrentScreen(id)
+    window.history.pushState({ screen: id }, '', `#${id}`)
+  }, [])
+
+  useEffect(() => {
+    // Deja registrada la pantalla inicial en el historial (sin agregar
+    // una entrada nueva), para que el primer "atrás" tenga a dónde ir.
+    window.history.replaceState({ screen: currentScreen }, '', `#${currentScreen}`)
+
+    function onPopState(event) {
+      const screen = event.state?.screen
+      if (screen) setCurrentScreen(screen)
+      // Si no hay estado, no hacemos nada — ya no queda "atrás" interno,
+      // dejamos que el navegador/SO decida (normalmente, cerrar la app).
+    }
+
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, []) // eslint-disable-line
 
   // ── Auto-suscripción silenciosa si el permiso ya fue concedido previamente ──
   useEffect(() => {
@@ -108,6 +146,7 @@ export function AppProvider({ children }) {
         })
 
         setRucs(sinDuplicados)
+        try { localStorage.setItem(RUCS_CACHE_KEY, JSON.stringify(sinDuplicados)) } catch {}
         setActiveRucId((prev) => (prev && sinDuplicados.some((r) => r.id === prev) ? prev : sinDuplicados[0]?.id ?? null))
         pushLog(`Google Sheets sincronizado — ${sinDuplicados.length} RUC(s) leídos`)
         if (rucsDuplicados.length) {

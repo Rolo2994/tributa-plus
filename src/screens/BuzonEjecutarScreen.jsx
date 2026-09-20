@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { ejecutarBuzon, consultarEstado } from '../services/buzonApi.js'
+import { ejecutarBuzon, consultarEstado, obtenerEstadoWorkspace } from '../services/buzonApi.js'
 
 export default function BuzonEjecutarScreen() {
   const { rucs, availableGroups, goScreen, pushLog } = useApp()
@@ -12,8 +12,17 @@ export default function BuzonEjecutarScreen() {
   const [tarea, setTarea] = useState(null)
   const [ejecutando, setEjecutando] = useState(false)
   const intervaloRef = useRef(null)
+  const [driveConectado, setDriveConectado] = useState(true) // optimista mientras carga, para no parpadear
 
   useEffect(() => () => clearInterval(intervaloRef.current), [])
+
+  useEffect(() => {
+    const wsId = localStorage.getItem('ezwork_workspace_id')
+    if (!wsId) return
+    obtenerEstadoWorkspace(wsId).then((res) => {
+      if (res.ok) setDriveConectado(!!res.drive_conectado)
+    }).catch(() => {})
+  }, [])
 
   function toggle(id) {
     setSelected((prev) => {
@@ -83,6 +92,13 @@ export default function BuzonEjecutarScreen() {
         </button>
         <div className="font-display font-bold text-[15px]">Ejecutar Buzón PDF</div>
       </div>
+
+      {!driveConectado && (
+        <div className="mx-4 mb-2 bg-[#FCE9EB] text-rojo-sunat text-[11px] rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+          <span>Tu Google Drive no está conectado — Buzón necesita subir los PDF ahí.</span>
+          <button onClick={() => goScreen('settings')} className="font-bold underline whitespace-nowrap">Ir a Ajustes</button>
+        </div>
+      )}
 
       <div className="px-4 pt-1">
         <button
@@ -186,10 +202,10 @@ export default function BuzonEjecutarScreen() {
       <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15]">
         <button
           onClick={ejecutar}
-          disabled={ejecutando}
+          disabled={ejecutando || !driveConectado}
           className="w-full bg-azul-dark disabled:opacity-60 text-white text-[13px] font-bold py-3 rounded-2xl shadow-float"
         >
-          {ejecutando ? 'Ejecutando…' : 'Ejecutar'}
+          {!driveConectado ? 'Conecta tu Drive primero' : ejecutando ? 'Ejecutando…' : 'Ejecutar'}
         </button>
       </div>
     </div>

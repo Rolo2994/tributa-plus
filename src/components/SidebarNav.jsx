@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext.jsx'
 const ITEMS_PRINCIPALES = [
   { id: 'home', label: 'RUCs', icon: (c) => <path d="M4 21V9L12 3L20 9V21H4Z" stroke={c} strokeWidth="1.8" strokeLinejoin="round" fill="none" /> },
   {
-    id: 'inicio', label: 'Vencimientos',
+    id: 'inicio', label: 'Inicio',
     icon: (c) => (
       <>
         <rect x="4" y="10" width="7" height="10" rx="1.5" stroke={c} strokeWidth="1.8" fill="none" />
@@ -80,7 +80,7 @@ function Section({ title, defaultOpen = true, children }) {
 }
 
 export default function SidebarNav() {
-  const { screen, goScreen, rucs, todosLosRecordatorios, pushLog } = useApp()
+  const { screen, goScreen, rucs, todosLosRecordatorios, pushLog, activeRuc, setDrawerOpen } = useApp()
   const activos = todosLosRecordatorios.filter((r) => r.recordar)
 
   function avisarProximamente(nombre) {
@@ -89,16 +89,31 @@ export default function SidebarNav() {
 
   return (
     <aside className="hidden md:flex md:flex-col md:w-64 md:flex-shrink-0 bg-gradient-to-b from-azul-inst to-azul-dark min-h-[100dvh] sticky top-0">
-      <div className="px-6 pt-7 pb-6 flex items-center gap-2.5 border-b border-white/10">
-        <div className="w-9 h-9 rounded-[10px] bg-white/10 border border-white/20 flex items-center justify-center">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-            <path d="M4 21V9L12 3L20 9V21H4Z" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
-            <path d="M9 21V13H15V21" stroke="#fff" strokeWidth="1.6" />
+      <div className="px-6 pt-7 pb-6 border-b border-white/10">
+        <div className="flex items-center gap-2.5 mb-3">
+          <div className="w-9 h-9 rounded-[10px] bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M4 21V9L12 3L20 9V21H4Z" stroke="#fff" strokeWidth="1.6" strokeLinejoin="round" />
+              <path d="M9 21V13H15V21" stroke="#fff" strokeWidth="1.6" />
+            </svg>
+          </div>
+          <div className="font-display font-extrabold text-[17px] text-white">
+            Tributa<span className="text-[#FF6B7F]">+</span>
+          </div>
+        </div>
+        <button
+          onClick={() => setDrawerOpen(true)}
+          title="Cambiar RUC"
+          className="w-full flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1.5"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#DCEBFA" strokeWidth="1.8" className="flex-shrink-0">
+            <rect x="3" y="7" width="18" height="13" rx="2" />
+            <path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" />
           </svg>
-        </div>
-        <div className="font-display font-extrabold text-[17px] text-white">
-          Tributa<span className="text-[#FF6B7F]">+</span>
-        </div>
+          <span className="text-[11px] font-semibold text-white truncate">
+            {activeRuc ? activeRuc.razonSocial : 'Elegir RUC'}
+          </span>
+        </button>
       </div>
 
       <div className="px-6 py-4 flex gap-2 border-b border-white/10">

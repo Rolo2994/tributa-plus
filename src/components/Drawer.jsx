@@ -2,11 +2,32 @@ import React, { useState, useRef } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 
 const DOT_COLOR = { ok: 'bg-verde', prox: 'bg-ambar', vencido: 'bg-rojo-sunat' }
+const RECIENTES_KEY = 'tributaplus_rucs_recientes'
+const MAX_RECIENTES = 8
+
+function leerRecientes() {
+  try {
+    return JSON.parse(localStorage.getItem(RECIENTES_KEY) || '[]')
+  } catch {
+    return []
+  }
+}
+
+function guardarReciente(id) {
+  const actuales = leerRecientes().filter((x) => x !== id)
+  actuales.unshift(id)
+  try {
+    localStorage.setItem(RECIENTES_KEY, JSON.stringify(actuales.slice(0, MAX_RECIENTES)))
+  } catch {
+    // localStorage lleno o bloqueado — no es crítico, se sigue sin recientes.
+  }
+}
 
 /** Panel lateral con la lista completa de RUCs — sirve para elegir el "RUC activo" usado por Módulos. */
 export default function Drawer() {
   const { rucs, drawerOpen, setDrawerOpen, activeRucId, setActiveRucId, pushLog } = useApp()
   const [search, setSearch] = useState('')
+  const [recientesIds, setRecientesIds] = useState(() => leerRecientes())
 
   const searchRef = useRef(null)
   function handleFocus() {
@@ -19,10 +40,34 @@ export default function Drawer() {
       r.razonSocial.toLowerCase().includes(search.toLowerCase())
   )
 
+  const recientes = recientesIds
+    .map((id) => rucs.find((r) => r.id === id))
+    .filter(Boolean)
+
   function pick(ruc) {
     setActiveRucId(ruc.id)
     setDrawerOpen(false)
     pushLog(`RUC activo cambiado a ${ruc.razonSocial} (${ruc.ruc})`)
+    guardarReciente(ruc.id)
+    setRecientesIds(leerRecientes())
+  }
+
+  function Fila(r) {
+    return (
+      <div
+        key={r.id}
+        onClick={() => pick(r)}
+        className={`flex items-center gap-2.5 px-2 py-2.5 rounded-[10px] text-[12.5px] text-sky-100 cursor-pointer mb-0.5 ${
+          r.id === activeRucId ? 'bg-white/10' : 'hover:bg-white/5'
+        }`}
+      >
+        <span className={`w-2 h-2 rounded-full ${DOT_COLOR[r.status]}`} />
+        <span>
+          <b className="text-white font-semibold">{r.ruc}</b> — {r.razonSocial.split(' ').slice(0, 2).join(' ')}
+        </span>
+        {r.id === activeRucId && <span className="ml-auto text-verde-console text-xs">✓</span>}
+      </div>
+    )
   }
 
   return (
@@ -48,21 +93,16 @@ export default function Drawer() {
           placeholder="Buscar RUC o razón social…"
           className="w-full mb-3.5 rounded-[10px] bg-white/10 border border-white/15 px-3 py-2.5 text-[12px] text-white placeholder:text-sky-300/60"
         />
-        {filtered.map((r) => (
-          <div
-            key={r.id}
-            onClick={() => pick(r)}
-            className={`flex items-center gap-2.5 px-2 py-2.5 rounded-[10px] text-[12.5px] text-sky-100 cursor-pointer mb-0.5 ${
-              r.id === activeRucId ? 'bg-white/10' : 'hover:bg-white/5'
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${DOT_COLOR[r.status]}`} />
-            <span>
-              <b className="text-white font-semibold">{r.ruc}</b> — {r.razonSocial.split(' ').slice(0, 2).join(' ')}
-            </span>
-            {r.id === activeRucId && <span className="ml-auto text-verde-console text-xs">✓</span>}
-          </div>
-        ))}
+
+        {!search.trim() && recientes.length > 0 && (
+          <>
+            <div className="text-[10px] font-bold uppercase tracking-wide text-sky-300/60 px-2 mb-1.5">Recientes</div>
+            {recientes.map((r) => Fila(r))}
+            <div className="text-[10px] font-bold uppercase tracking-wide text-sky-300/60 px-2 mt-3 mb-1.5">Todos los RUCs</div>
+          </>
+        )}
+
+        {filtered.map((r) => Fila(r))}
       </div>
     </>
   )
