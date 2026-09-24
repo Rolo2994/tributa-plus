@@ -20,6 +20,21 @@ const ANIO_ACTUAL = new Date().getFullYear()
 const ANIOS_SIRE = [ANIO_ACTUAL, ANIO_ACTUAL - 1, ANIO_ACTUAL - 2]
 const REGIMENES = ['RER (Régimen Especial)', 'MYPE Tributario', 'Régimen General']
 
+// Códigos de tributo SUNAT más comunes → nombre corto para mostrar junto
+// al código. Esta lista NO es exhaustiva — solo cubre los más frecuentes
+// en PDT 621 mensual. Si un código no está aquí, se muestra solo el
+// código, sin nombre inventado.
+const NOMBRE_TRIBUTO = {
+  '1011': 'IGV',
+  '1012': 'IGV Ret.',
+  '1054': 'IGV Percep.',
+  '3011': 'Renta RG',
+  '3031': 'Renta RER',
+  '3035': 'Renta MYPE',
+  '5210': 'ONP',
+  '5211': 'EsSalud',
+}
+
 const TIPOS_DASHBOARD = [
   { id: 'tributario', label: 'Tributario' },
   { id: 'pre-fv621', label: 'Pre FV621' },
@@ -155,11 +170,30 @@ export default function DashboardScreen() {
     return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
   }, [rowsCalculadas])
 
-  const rowsFiltradas = useMemo(() => {
+  const rowsFiltradasTodo = useMemo(() => {
     if (!empresaFiltro) return []
     if (empresaFiltro === 'Todas') return rowsCalculadas
     return rowsCalculadas.filter((r) => r.ruc === empresaFiltro)
   }, [rowsCalculadas, empresaFiltro])
+
+  // Deuda fraccionada / acogida a IGV Justo va aparte — no es deuda
+  // pendiente "normal", tiene su propio cronograma de pago. Se detecta
+  // por cómo arranca el texto de Observaciones (columna N del Sheet).
+  function tipoEspecial(obs) {
+    const o = (obs || '').trim().toLowerCase()
+    if (o.startsWith('deuda fraccionada')) return 'fraccionado'
+    if (o.startsWith('acogido a igv justo')) return 'igv_justo'
+    return null
+  }
+
+  const rowsFiltradas = useMemo(
+    () => rowsFiltradasTodo.filter((r) => !tipoEspecial(r.observaciones)),
+    [rowsFiltradasTodo]
+  )
+  const rowsEspeciales = useMemo(
+    () => rowsFiltradasTodo.filter((r) => tipoEspecial(r.observaciones)),
+    [rowsFiltradasTodo]
+  )
 
   const kpis = useMemo(() => {
     const totalInteres = rowsFiltradas.reduce((s, r) => s + r.interes, 0)
@@ -572,7 +606,9 @@ export default function DashboardScreen() {
                     <tbody>
                       {rowsFiltradas.map((r, i) => (
                         <tr key={r.id} className={`border-t border-[#F1F4F8] ${r.diasAtraso > 0 ? 'bg-[#FCE9EB]/40' : i % 2 ? 'bg-[#FAFBFD]' : 'bg-white'}`}>
-                          <td className="px-2.5 py-2 whitespace-nowrap text-ink font-semibold">{r.tributo}</td>
+                          <td className="px-2.5 py-2 whitespace-nowrap text-ink font-semibold">
+                            {r.tributo}{NOMBRE_TRIBUTO[r.tributo] && <span className="text-muted font-normal"> ({NOMBRE_TRIBUTO[r.tributo]})</span>}
+                          </td>
                           <td className="px-2.5 py-2 whitespace-nowrap text-muted">{MES_ABBR[r.mes - 1] || r.mes}/{r.anio}</td>
                           <td className="px-2.5 py-2 whitespace-nowrap text-right font-mono">{formatMoney(r.saldoPendiente)}</td>
                           <td className="px-2.5 py-2 whitespace-nowrap text-muted">{r.fechaVenc ? r.fechaVenc.slice(5) : '—'}{r.diasAtraso > 0 && <span className="text-rojo-sunat font-semibold"> ({r.diasAtraso}d)</span>}</td>
@@ -587,6 +623,36 @@ export default function DashboardScreen() {
                   </table>
                 </div>
               </div>
+
+              {rowsEspeciales.length > 0 && (
+                <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card overflow-hidden mb-5">
+                  <div className="px-3.5 py-2.5 bg-[#0B3A60] text-white text-[11px] font-semibold">
+                    Fraccionado / Acogido a IGV Justo — {rowsEspeciales.length} tributo(s)
+                  </div>
+                  {rowsEspeciales.map((r) => {
+                    const tipo = tipoEspecial(r.observaciones)
+                    return (
+                      <div key={r.id} className="px-3.5 py-3 border-t border-[#F1F4F8] first:border-t-0">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <div className="text-[12px] font-semibold text-ink">
+                            {r.tributo}{NOMBRE_TRIBUTO[r.tributo] && <span className="text-muted font-normal"> ({NOMBRE_TRIBUTO[r.tributo]})</span>}
+                            <span className="text-muted font-normal"> · {MES_ABBR[r.mes - 1] || r.mes}/{r.anio}</span>
+                          </div>
+                          <div className="text-[12px] font-mono font-semibold text-ink whitespace-nowrap">S/ {formatMoney(r.saldoPendiente)}</div>
+                        </div>
+                        <div className="flex items-start gap-1.5">
+                          <span className={`text-[8.5px] font-bold px-1.5 py-[2px] rounded flex-shrink-0 mt-0.5 ${
+                            tipo === 'fraccionado' ? 'bg-[#EAF1FA] text-azul-inst' : 'bg-[#FBF1DD] text-[#8A6A00]'
+                          }`}>
+                            {tipo === 'fraccionado' ? 'FRACCIONADO' : 'IGV JUSTO'}
+                          </span>
+                          <span className="text-[10.5px] text-muted leading-snug">{r.observaciones}</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
             </>
           )}
         </>
@@ -637,14 +703,20 @@ export default function DashboardScreen() {
                 <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
                   <span className="block text-[11px] font-bold mb-1.5">Periodo — {activeRuc.razonSocial}</span>
                   <div className="flex gap-2 mb-3">
-                    <select value={anioFv} onChange={(e) => setAnioFv(Number(e.target.value))}
-                      className="flex-1 border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
-                      {ANIOS_SIRE.map((a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                    <select value={mesFv} onChange={(e) => setMesFv(Number(e.target.value))}
-                      className="flex-1 border border-bordersoft rounded-lg px-2.5 py-2 text-[12px]">
-                      {MESES.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                    </select>
+                    <CustomSelect
+                      title="Año"
+                      value={anioFv}
+                      onChange={setAnioFv}
+                      options={ANIOS_SIRE.map((a) => ({ value: a, label: String(a) }))}
+                      className="flex-1"
+                    />
+                    <CustomSelect
+                      title="Mes"
+                      value={mesFv}
+                      onChange={setMesFv}
+                      options={MESES.map((m, i) => ({ value: i + 1, label: m }))}
+                      className="flex-1"
+                    />
                     <button onClick={buscarArchivosFv} disabled={buscandoFv}
                       className="px-3.5 py-2 rounded-lg bg-azul-inst text-white text-[11.5px] font-semibold disabled:opacity-60">
                       {buscandoFv ? '…' : 'Buscar'}
@@ -701,10 +773,15 @@ export default function DashboardScreen() {
               {pasoFv === 2 && (
                 <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-4">
                   <div className="text-[12px] font-bold mb-2.5">Régimen tributario</div>
-                  <select value={regimen} onChange={(e) => setRegimen(e.target.value)}
-                    className="w-full border border-bordersoft rounded-lg px-2.5 py-2 text-[12px] mb-3">
-                    {REGIMENES.map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
+                  <div className="mb-3">
+                    <CustomSelect
+                      title="Régimen"
+                      value={regimen}
+                      onChange={setRegimen}
+                      options={REGIMENES.map((r) => ({ value: r, label: r }))}
+                      className="w-full"
+                    />
+                  </div>
 
                   {regimen.startsWith('MYPE') && (
                     <label className="flex items-center gap-2 text-[11.5px] mb-2.5">
