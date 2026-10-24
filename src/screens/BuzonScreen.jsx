@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { listarPdfs, obtenerPdfBlob, eliminarPdf } from '../services/buzonApi.js'
+import { listarPdfs, obtenerPdfBlob, eliminarPdf, obtenerEstadoWorkspace } from '../services/buzonApi.js'
 
 // ── Constantes globales ─────────────────────────────────────────────
 const TIMEOUT_DESCARGA_MS = 30000 // máximo de espera por cada descarga de PDF
@@ -17,9 +17,10 @@ const COLOR_VER = 'bg-[#E8F1FA]'
 const COLOR_ELIMINAR = 'bg-[#FCE9EB] text-rojo-sunat'
 
 // Abre el PDF en el visor de Drive (no descarga nada del servidor).
-// Si se conoce el correo de la cuenta de Drive, se agrega "authuser" para que Google
-// abra directamente con esa cuenta, sin preguntar cuál elegir.
-const CLAVE_CORREO_DRIVE = 'ezwork_drive_email' // dónde se recuerda el correo en este celular
+// El servidor informa el correo de la cuenta de Drive conectada (drive_email). Con él se agrega
+// "authuser" para que Google abra directamente con esa cuenta, sin preguntar cuál elegir.
+// El último correo recibido se recuerda en este celular para tenerlo desde el primer instante.
+const CLAVE_CORREO_DRIVE = 'ezwork_drive_email'
 
 const urlVerDrive = (id, correo) =>
   `https://drive.google.com/file/d/${id}/view${correo ? `?authuser=${encodeURIComponent(correo)}` : ''}`
@@ -29,7 +30,7 @@ function leerCorreoDrive() {
 }
 
 function guardarCorreoDrive(correo) {
-  try { localStorage.setItem(CLAVE_CORREO_DRIVE, correo) } catch { /* sin almacenamiento: se pedirá de nuevo */ }
+  try { localStorage.setItem(CLAVE_CORREO_DRIVE, correo) } catch { /* sin almacenamiento: no pasa nada, se vuelve a pedir al servidor */ }
 }
 
 // Deja el nombre del PDF "limpio" para compartirlo: sin tildes, sin paréntesis, sin °,
@@ -67,6 +68,7 @@ export default function BuzonScreen() {
   const [enviando, setEnviando] = useState(false)
   const [seleccionados, setSeleccionados] = useState(new Set())
   const [colaEnvio, setColaEnvio] = useState([])
+  const [correoDrive, setCorreoDrive] = useState(() => leerCorreoDrive()) // cuenta de Google del Drive conectado
 
   // PDFs que se están descargando ahora (para mostrar "Bajando…").
   const [descargando, setDescargando] = useState(new Set())
