@@ -1,6 +1,10 @@
 const BASE_URL = import.meta.env.VITE_BUZON_API_URL || ''
 const API_KEY = import.meta.env.VITE_BUZON_API_KEY || ''
 
+// Tiempo máximo (en milisegundos) que esperamos al servidor al descargar un PDF.
+// Si pasa este tiempo, se cancela y se avisa, en vez de quedarse "cargando" para siempre.
+const TIMEOUT_PDF_MS = 30000
+
 function wsHeaders(extra = {}) {
   const wsId = localStorage.getItem('ezwork_workspace_id') || ''
   return { 'X-API-KEY': API_KEY, 'X-WORKSPACE-ID': wsId, ...extra }
@@ -36,12 +40,37 @@ export async function listarPdfs(fecha) {
   return res.json()
 }
 
-export async function obtenerPdfBlob(fileId) {
-  const res = await fetch(`${BASE_URL}/pdfs/${fileId}`, {
-    headers: wsHeaders(),
-  })
-  if (!res.ok) throw new Error('No se pudo obtener el PDF')
-  return res.blob()
+// Descarga un PDF desde el servidor (que a su vez lo baja de Drive).
+// - Tiene un límite de tiempo (timeoutMs) para no quedarse colgado.
+// - Si el servidor responde con error, el mensaje incluye el código (500, 502, 504...)
+//   y el detalle que haya enviado el backend, para saber qué pasó.
+export async function obtenerPdfBlob(fileId, { timeoutMs = TIMEOUT_PDF_MS } = {}) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const res = await fetch(`${BASE_URL}/pdfs/${fileId}`, {
+      headers: wsHeaders(),
+      signal: controller.signal,
+    })
+    if (!res.ok) {
+      let detalle = ''
+      try {
+        const data = await res.json()
+        detalle = data?.error || ''
+      } catch {
+        // la respuesta no era JSON; no pasa nada
+      }
+      throw new Error(`El servidor respondió ${res.status}${detalle ? `: ${detalle}` : ''}`)
+    }
+    return await res.blob()
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new Error(`La descarga tardó más de ${Math.round(timeoutMs / 1000)} s y se canceló`)
+    }
+    throw err
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 export async function eliminarPdf(fileId) {

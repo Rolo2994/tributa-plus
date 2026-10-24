@@ -1,6 +1,13 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import { listarPdfs, obtenerPdfBlob, eliminarPdf } from '../services/buzonApi.js'
+
+// ── Constantes globales ─────────────────────────────────────────────
+const TIMEOUT_DESCARGA_MS = 30000 // máximo de espera por cada descarga de PDF
+const REINTENTOS_DESCARGA = 1     // cuántas veces reintenta si la descarga falla
+const PRECARGA_COLA = 3           // cuántos PDFs de la cola se descargan por adelantado
+const BTN_FILA_W = 'w-[104px]'    // ancho fijo del botón verde de cada fila (evita que cambie de tamaño al cambiar el texto)
+const BTN_COLA_W = 'w-[116px]'    // ancho fijo del botón verde de la barra de cola
 
 export default function BuzonScreen() {
   const { goScreen, pushLog } = useApp()
@@ -14,6 +21,12 @@ export default function BuzonScreen() {
   const [enviando, setEnviando] = useState(false)
   const [seleccionados, setSeleccionados] = useState(new Set())
   const [colaEnvio, setColaEnvio] = useState([])
+
+  // PDFs ya descargados al celular (en memoria) y PDFs que se están descargando ahora.
+  const [listos, setListos] = useState(new Set())
+  const [descargando, setDescargando] = useState(new Set())
+  const cacheRef = useRef(new Map())      // id -> File ya descargado
+  const pendientesRef = useRef(new Map()) // id -> descarga en curso (evita descargar 2 veces lo mismo)
 
   async function cargar() {
     setCargando(true)
@@ -37,7 +50,30 @@ export default function BuzonScreen() {
     }
   }
 
-  useEffect(() => { cargar(); setSeleccionados(new Set()) }, [fecha]) // eslint-disable-line
+  useEffect(() => {
+    cargar()
+    setSeleccionados(new Set())
+    cacheRef.current.clear()
+    setListos(new Set())
+  }, [fecha]) // eslint-disable-line
+
+  // Cuando empieza (o avanza) la cola, descarga por adelantado los próximos PDFs,
+  // de uno en uno, para no saturar el servidor.
+  useEffect(() => {
+    if (colaEnvio.length === 0) return
+    let cancelado = false
+    ;(async () => {
+      for (const archivo of colaEnvio.slice(0, PRECARGA_COLA)) {
+        if (cancelado) return
+        try {
+          await prepararArchivo(archivo)
+        } catch (err) {
+          pushLog(`✗ No se pudo descargar "${archivo.nombre}": ${err?.message || err}`)
+        }
+      }
+    })()
+    return () => { cancelado = true }
+  }, [colaEnvio]) // eslint-disable-line
 
   function toggle(id) {
     setSeleccionados((prev) => {
@@ -53,31 +89,96 @@ export default function BuzonScreen() {
     return partes.join(' | ')
   }
 
-  async function enviarUno(archivo) {
-    const texto = armarTexto(archivo)
-    try {
-      await navigator.clipboard.writeText(texto)
-      pushLog('📋 Texto copiado — pégalo en el mensaje de WhatsApp')
-    } catch (err) {
-      pushLog(`✗ No se pudo copiar el texto: ${err?.message || err}`)
+  // ── Descarga (paso 1) ────────────────────────────────────────────
+
+  // Descarga el PDF con límite de tiempo y un reintento automático.
+  async function descargarConReintento(archivo) {
+    let ultimoError
+    for (let intento = 0; intento <= REINTENTOS_DESCARGA; intento++) {
+      try {
+        const inicio = Date.now()
+        const blob = await obtenerPdfBlob(archivo.id, { timeoutMs: TIMEOUT_DESCARGA_MS })
+        const seg = ((Date.now() - inicio) / 1000).toFixed(1)
+        pushLog(`⬇ PDF descargado (${Math.round(blob.size / 1024)} KB en ${seg} s)`)
+        return blob
+      } catch (err) {
+        ultimoError = err
+        if (intento < REINTENTOS_DESCARGA) pushLog(`⚠ ${err?.message || err} — reintentando…`)
+      }
+    }
+    throw ultimoError
+  }
+
+  // Deja el PDF descargado en memoria (como File). Si ya está, no lo vuelve a bajar.
+  function prepararArchivo(archivo) {
+    const enCache = cacheRef.current.get(archivo.id)
+    if (enCache) return Promise.resolve(enCache)
+
+    const enCurso = pendientesRef.current.get(archivo.id)
+    if (enCurso) return enCurso
+
+    setDescargando((prev) => new Set(prev).add(archivo.id))
+    pushLog(`⬇ Descargando "${archivo.nombre}"…`)
+
+    const promesa = (async () => {
+      const blob = await descargarConReintento(archivo)
+      const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
+      cacheRef.current.set(archivo.id, file)
+      setListos((prev) => new Set(prev).add(archivo.id))
+      return file
+    })().finally(() => {
+      pendientesRef.current.delete(archivo.id)
+      setDescargando((prev) => {
+        const next = new Set(prev)
+        next.delete(archivo.id)
+        return next
+      })
+    })
+
+    pendientesRef.current.set(archivo.id, promesa)
+    return promesa
+  }
+
+  // ── Compartir (paso 2) ───────────────────────────────────────────
+  // IMPORTANTE: esta función debe ejecutarse justo al tocar el botón, SIN esperar
+  // ninguna descarga antes. El navegador solo permite abrir el menú "Compartir"
+  // (y abrir pestañas) durante unos segundos después de un toque.
+  async function compartirArchivo(archivo, file) {
+    // Copiar el texto no se espera (sin await) para no perder tiempo del toque.
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(armarTexto(archivo))
+        .then(() => pushLog('📋 Texto copiado — pégalo en el mensaje de WhatsApp'))
+        .catch((err) => pushLog(`✗ No se pudo copiar el texto: ${err?.message || err}`))
+    } else {
+      pushLog('⚠ Este navegador no permite copiar el texto automáticamente')
     }
 
-    const blob = await obtenerPdfBlob(archivo.id)
-    const file = new File([blob], archivo.nombre, { type: 'application/pdf' })
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file] })
     } else {
-      const url = URL.createObjectURL(blob)
-      window.open(url, '_blank')
+      window.open(URL.createObjectURL(file), '_blank')
     }
   }
 
+  // Botón "Ver / Enviar" de cada fila:
+  //  - 1er toque: descarga el PDF (y el botón cambia a "Compartir").
+  //  - 2do toque: abre el menú de compartir al instante.
   async function verOEnviar(archivo) {
     setEnviando(true)
     try {
-      await enviarUno(archivo)
+      const file = cacheRef.current.get(archivo.id)
+      if (file) {
+        await compartirArchivo(archivo, file)
+      } else {
+        await prepararArchivo(archivo)
+        pushLog('✓ PDF listo — toca "Compartir" para enviarlo')
+      }
     } catch (err) {
-      pushLog(`✗ No se pudo abrir/compartir: ${err?.message || err}`)
+      if (err?.name === 'AbortError') {
+        pushLog('ℹ Envío cancelado')
+      } else {
+        pushLog(`✗ No se pudo abrir/compartir: ${err?.message || err}`)
+      }
     } finally {
       setEnviando(false)
     }
@@ -92,14 +193,31 @@ export default function BuzonScreen() {
   async function enviarSiguienteDeLaCola() {
       if (colaEnvio.length === 0) return
       const [actual, ...resto] = colaEnvio
+
+      // Si por alguna razón aún no está descargado, lo descarga y hay que volver a tocar.
+      const file = cacheRef.current.get(actual.id)
+      if (!file) {
+        try {
+          await prepararArchivo(actual)
+          pushLog('✓ PDF listo — toca "Enviar este"')
+        } catch (err) {
+          pushLog(`✗ No se pudo descargar "${actual.nombre}": ${err?.message || err}`)
+        }
+        return
+      }
+
       setEnviando(true)
       try {
-        await enviarUno(actual)
+        await compartirArchivo(actual, file)
+        setColaEnvio(resto) // solo avanza si se compartió bien
       } catch (err) {
-        pushLog(`✗ No se pudo enviar "${actual.nombre}": ${err?.message || err}`)
+        if (err?.name === 'AbortError') {
+          pushLog('ℹ Envío cancelado — toca "Enviar este" para reintentar')
+        } else {
+          pushLog(`✗ No se pudo enviar "${actual.nombre}": ${err?.message || err}`)
+        }
       } finally {
         setEnviando(false)
-        setColaEnvio(resto)
       }
   }
 
@@ -109,6 +227,7 @@ export default function BuzonScreen() {
     try {
       const res = await eliminarPdf(archivo.id)
       if (res.ok) {
+        cacheRef.current.delete(archivo.id)
         setArchivos((prev) => prev.filter((a) => a.id !== archivo.id))
         pushLog(`🗑 Eliminado: ${archivo.nombre}`)
       } else {
@@ -127,6 +246,7 @@ export default function BuzonScreen() {
       try {
         const res = await eliminarPdf(archivo.id)
         if (res.ok) {
+          cacheRef.current.delete(archivo.id)
           setArchivos((prev) => prev.filter((a) => a.id !== archivo.id))
         } else {
           pushLog(`✗ No se pudo eliminar "${archivo.nombre}": ${res.error}`)
@@ -138,6 +258,11 @@ export default function BuzonScreen() {
     setSeleccionados(new Set())
     pushLog(`🗑 ${lista.length} PDF(s) eliminados`)
   }
+
+  // Datos del archivo que sigue en la cola (para el texto del botón de la barra inferior).
+  const actualCola = colaEnvio[0]
+  const actualListo = !!actualCola && listos.has(actualCola.id)
+  const actualDescargando = !!actualCola && descargando.has(actualCola.id)
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
@@ -192,10 +317,10 @@ export default function BuzonScreen() {
             </div>
             <button
               onClick={() => verOEnviar(a)}
-              disabled={enviando}
-              className="flex items-center gap-1.5 bg-[#25D366] disabled:opacity-60 text-white text-[11px] font-bold px-3 py-2 rounded-[10px] flex-shrink-0"
+              disabled={enviando || descargando.has(a.id)}
+              className={`flex items-center justify-center gap-1.5 bg-[#25D366] disabled:opacity-60 text-white text-[11px] font-bold py-2 rounded-[10px] flex-shrink-0 ${BTN_FILA_W}`}
             >
-              Ver / Enviar
+              {descargando.has(a.id) ? 'Descargando…' : listos.has(a.id) ? 'Compartir' : 'Ver / Enviar'}
             </button>
             <button
               onClick={() => borrarUno(a)}
@@ -211,14 +336,14 @@ export default function BuzonScreen() {
       {colaEnvio.length > 0 ? (
          <div className="absolute left-3.5 right-3.5 bottom-3.5 z-[15] bg-azul-dark rounded-2xl px-4 py-3 flex items-center justify-between shadow-float">
              <span className="text-white text-[11.5px] font-semibold truncate mr-2">
-                  Falta{colaEnvio.length > 1 ? 'n' : ''} {colaEnvio.length}: {colaEnvio[0].nombre.slice(0, 30)}…
+                  Falta{colaEnvio.length > 1 ? 'n' : ''} {colaEnvio.length}: {actualCola.nombre.slice(0, 30)}…
              </span>
              <button
                  onClick={enviarSiguienteDeLaCola}
-                 disabled={enviando}
-                 className="bg-[#25D366] disabled:opacity-60 text-white text-[12px] font-bold px-4 py-2.5 rounded-[10px] flex-shrink-0"
+                 disabled={enviando || actualDescargando}
+                 className={`flex items-center justify-center bg-[#25D366] disabled:opacity-60 text-white text-[12px] font-bold py-2.5 rounded-[10px] flex-shrink-0 ${BTN_COLA_W}`}
              >
-                 {enviando ? '…' : 'Enviar este'}
+                 {actualDescargando ? 'Descargando…' : actualListo ? 'Enviar este' : 'Descargar'}
              </button>
          </div>
       ) : seleccionados.size > 0 && (
