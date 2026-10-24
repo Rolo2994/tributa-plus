@@ -17,7 +17,20 @@ const COLOR_VER = 'bg-[#E8F1FA]'
 const COLOR_ELIMINAR = 'bg-[#FCE9EB] text-rojo-sunat'
 
 // Abre el PDF en el visor de Drive (no descarga nada del servidor).
-const urlVerDrive = (id) => `https://drive.google.com/file/d/${id}/view`
+// Si se conoce el correo de la cuenta de Drive, se agrega "authuser" para que Google
+// abra directamente con esa cuenta, sin preguntar cuál elegir.
+const CLAVE_CORREO_DRIVE = 'ezwork_drive_email' // dónde se recuerda el correo en este celular
+
+const urlVerDrive = (id, correo) =>
+  `https://drive.google.com/file/d/${id}/view${correo ? `?authuser=${encodeURIComponent(correo)}` : ''}`
+
+function leerCorreoDrive() {
+  try { return localStorage.getItem(CLAVE_CORREO_DRIVE) || '' } catch { return '' }
+}
+
+function guardarCorreoDrive(correo) {
+  try { localStorage.setItem(CLAVE_CORREO_DRIVE, correo) } catch { /* sin almacenamiento: se pedirá de nuevo */ }
+}
 
 // Deja el nombre del PDF "limpio" para compartirlo: sin tildes, sin paréntesis, sin °,
 // sin puntos dobles ni puntos al final, y con largo máximo. Algunos nombres de SUNAT
@@ -228,8 +241,24 @@ export default function BuzonScreen() {
     }
   }
 
+  // Botón del ojo. La primera vez pide el correo de la cuenta de Drive y lo recuerda;
+  // desde la segunda vez abre el PDF directo con esa cuenta.
   function verPdf(archivo) {
-    window.open(urlVerDrive(archivo.id), '_blank', 'noopener')
+    let correo = leerCorreoDrive()
+    if (!correo) {
+      const ingresado = window.prompt('Escribe el correo de la cuenta de Google donde está tu Drive (solo se pide esta vez):')
+      const limpio = (ingresado || '').trim().toLowerCase()
+      if (limpio.includes('@')) {
+        guardarCorreoDrive(limpio)
+        // No se abre el PDF ahora: escribir el correo toma más tiempo del que el navegador
+        // permite para abrir una pestaña nueva. Se vuelve a tocar el ojo y ya abre directo.
+        pushLog(`✓ Correo de Drive guardado (${limpio}). Toca el ojo otra vez para ver el PDF.`)
+        return
+      }
+      // Sin correo válido: se abre como antes (Google preguntará la cuenta).
+      correo = ''
+    }
+    window.open(urlVerDrive(archivo.id, correo), '_blank', 'noopener')
   }
 
   // ── Cola de envío ────────────────────────────────────────────────
