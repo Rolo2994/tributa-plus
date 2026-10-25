@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useApp } from '../context/AppContext.jsx'
-import { listarPdfs, obtenerPdfBlob, eliminarPdf, obtenerEstadoWorkspace } from '../services/buzonApi.js'
+import { listarPdfs, obtenerPdfBlob, eliminarPdf } from '../services/buzonApi.js'
+import PdfViewer from '../components/PdfViewer.jsx'
 
 // ── Constantes globales ─────────────────────────────────────────────
 const TIMEOUT_DESCARGA_MS = 30000 // máximo de espera por cada descarga de PDF
@@ -13,25 +14,10 @@ const NOMBRE_SEGURO_MAX = 100     // largo máximo del nombre del PDF cuando se 
 const BTN_ICONO = 'w-9 h-9 rounded-[10px] flex items-center justify-center flex-shrink-0'      // Ver y Eliminar (mismo tamaño)
 const BTN_ENVIAR_FILA = 'w-[72px] py-2 rounded-[10px] flex items-center justify-center flex-shrink-0 bg-[#25D366] disabled:opacity-60 text-white text-[11px] font-bold'
 const BTN_COLA_BASE = 'py-2.5 rounded-[10px] flex items-center justify-center flex-shrink-0 text-[12px] font-bold'
+const ALTO_FILA = 'min-h-[68px]'  // alto mínimo de cada fila: todas miden lo mismo, aunque el nombre sea corto
+const CLAMP_2_LINEAS = { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' } // nombre: máximo 2 líneas
 const COLOR_VER = 'bg-[#E8F1FA]'
 const COLOR_ELIMINAR = 'bg-[#FCE9EB] text-rojo-sunat'
-
-// Abre el PDF en el visor de Drive (no descarga nada del servidor).
-// El servidor informa el correo de la cuenta de Drive conectada (drive_email). Con él se agrega
-// "authuser" para que Google abra directamente con esa cuenta, sin preguntar cuál elegir.
-// El último correo recibido se recuerda en este celular para tenerlo desde el primer instante.
-const CLAVE_CORREO_DRIVE = 'ezwork_drive_email'
-
-const urlVerDrive = (id, correo) =>
-  `https://drive.google.com/file/d/${id}/view${correo ? `?authuser=${encodeURIComponent(correo)}` : ''}`
-
-function leerCorreoDrive() {
-  try { return localStorage.getItem(CLAVE_CORREO_DRIVE) || '' } catch { return '' }
-}
-
-function guardarCorreoDrive(correo) {
-  try { localStorage.setItem(CLAVE_CORREO_DRIVE, correo) } catch { /* sin almacenamiento: no pasa nada, se vuelve a pedir al servidor */ }
-}
 
 // Deja el nombre del PDF "limpio" para compartirlo: sin tildes, sin paréntesis, sin °,
 // sin puntos dobles ni puntos al final, y con largo máximo. Algunos nombres de SUNAT
@@ -68,7 +54,8 @@ export default function BuzonScreen() {
   const [enviando, setEnviando] = useState(false)
   const [seleccionados, setSeleccionados] = useState(new Set())
   const [colaEnvio, setColaEnvio] = useState([])
-  const [correoDrive, setCorreoDrive] = useState(() => leerCorreoDrive()) // cuenta de Google del Drive conectado
+  // Visor de PDF dentro de la app: archivo que se está viendo y estado de su descarga.
+  const [visor, setVisor] = useState({ abierto: false, archivo: null, file: null, cargando: false, error: '' })
 
   // PDFs que se están descargando ahora (para mostrar "Bajando…").
   const [descargando, setDescargando] = useState(new Set())
@@ -102,6 +89,15 @@ export default function BuzonScreen() {
     setSeleccionados(new Set())
     cacheRef.current.clear()
   }, [fecha]) // eslint-disable-line
+
+  // El gesto/botón "atrás" del celular cierra el visor en vez de salir de la pantalla.
+  useEffect(() => {
+    if (!visor.abierto) return undefined
+    window.history.pushState({ screen: 'buzon', visor: true }, '', '#buzon')
+    const alVolver = () => setVisor((v) => ({ ...v, abierto: false }))
+    window.addEventListener('popstate', alVolver)
+    return () => window.removeEventListener('popstate', alVolver)
+  }, [visor.abierto])
 
   // Cuando empieza (o avanza) la cola, descarga por adelantado los próximos PDFs,
   // de uno en uno, para no saturar el servidor.
@@ -243,24 +239,36 @@ export default function BuzonScreen() {
     }
   }
 
-  // Botón del ojo. La primera vez pide el correo de la cuenta de Drive y lo recuerda;
-  // desde la segunda vez abre el PDF directo con esa cuenta.
-  function verPdf(archivo) {
-    let correo = leerCorreoDrive()
-    if (!correo) {
-      const ingresado = window.prompt('Escribe el correo de la cuenta de Google donde está tu Drive (solo se pide esta vez):')
-      const limpio = (ingresado || '').trim().toLowerCase()
-      if (limpio.includes('@')) {
-        guardarCorreoDrive(limpio)
-        // No se abre el PDF ahora: escribir el correo toma más tiempo del que el navegador
-        // permite para abrir una pestaña nueva. Se vuelve a tocar el ojo y ya abre directo.
-        pushLog(`✓ Correo de Drive guardado (${limpio}). Toca el ojo otra vez para ver el PDF.`)
-        return
-      }
-      // Sin correo válido: se abre como antes (Google preguntará la cuenta).
-      correo = ''
+  // Botón del ojo: abre el PDF dentro de la app (visor propio, sin Drive ni cuentas de Google).
+  // El PDF queda guardado en memoria, así que al tocar "Enviar" después ya no se vuelve a descargar.
+  async function verPdf(archivo) {
+    const enCache = cacheRef.current.get(archivo.id)
+    setVisor({ abierto: true, archivo, file: enCache || null, cargando: !enCache, error: '' })
+    if (enCache) return
+    try {
+      const file = await prepararArchivo(archivo)
+      setVisor((v) => (v.archivo?.id === archivo.id ? { ...v, file, cargando: false } : v))
+    } catch (err) {
+      setVisor((v) => (v.archivo?.id === archivo.id ? { ...v, cargando: false, error: err?.message || String(err) } : v))
     }
-    window.open(urlVerDrive(archivo.id, correo), '_blank', 'noopener')
+  }
+
+  // Cierra el visor quitando la entrada de historial que se agregó al abrirlo
+  // (el evento "popstate" del efecto de arriba es el que realmente lo cierra).
+  function cerrarVisor() {
+    window.history.back()
+  }
+
+  // Guarda el PDF en el celular (solo cuando se toca "Descargar" en el visor).
+  function descargarPdf(file) {
+    const url = URL.createObjectURL(file)
+    const enlace = document.createElement('a')
+    enlace.href = url
+    enlace.download = file.name
+    document.body.appendChild(enlace)
+    enlace.click()
+    enlace.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
 
   // ── Cola de envío ────────────────────────────────────────────────
@@ -370,7 +378,7 @@ export default function BuzonScreen() {
         )}
 
         {!cargando && archivos.map((a) => (
-          <div key={a.id} className="flex gap-2.5 items-center bg-white rounded-xl border border-[#F0F3F7] p-3 mb-2">
+          <div key={a.id} className={`flex gap-2.5 items-center bg-white rounded-xl border border-[#F0F3F7] p-3 mb-2 ${ALTO_FILA}`}>
             <button
               onClick={() => toggle(a.id)}
               className={`w-[19px] h-[19px] rounded-md border-[1.6px] flex-shrink-0 flex items-center justify-center text-[12px] ${
@@ -380,7 +388,7 @@ export default function BuzonScreen() {
               {seleccionados.has(a.id) ? '✓' : ''}
             </button>
             <div className="flex-1 min-w-0">
-              <div className="text-[12px] font-semibold truncate">{a.nombre}</div>
+              <div className="text-[12px] font-semibold leading-[15px] break-words" style={CLAMP_2_LINEAS}>{a.nombre.replace(/_/g, '_\u200B')}</div>
               {(a.fecha || a.razon) && (
                 <div className="text-[10.5px] text-muted truncate">{armarTexto(a)}</div>
               )}
@@ -452,6 +460,16 @@ export default function BuzonScreen() {
             </div>
         </div>
       )}
+
+      <PdfViewer
+        open={visor.abierto}
+        onClose={cerrarVisor}
+        documento={{ asunto: visor.archivo?.razon || visor.archivo?.nombre, fecha: visor.archivo?.fecha, hora: visor.archivo?.hora }}
+        pdfArchivo={visor.file}
+        cargando={visor.cargando}
+        error={visor.error}
+        onDownload={() => visor.file && descargarPdf(visor.file)}
+      />
     </div>
   )
 }
