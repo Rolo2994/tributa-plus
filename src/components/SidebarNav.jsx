@@ -29,6 +29,7 @@ const ACCIONES_SUNAT = [
   { id: 'validez', label: 'Validez CP' },
   { id: 'detracc', label: 'Detracciones' },
   { id: 'sire', label: 'SIRE' },
+  { id: 'descarga-cpe', label: 'Descarga CPE' },
 ]
 
 // Marcador de posición — reemplaza estos 4 nombres por los que confirmes.

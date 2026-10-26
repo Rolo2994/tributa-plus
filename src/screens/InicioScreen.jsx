@@ -15,6 +15,7 @@ const ACCIONES = [
   { id: 'validez', label: 'Validez CP', icon: '🔎' },
   { id: 'detracc', label: 'Detracciones', icon: '📊' },
   { id: 'sire', label: 'SIRE', icon: '⬇' },
+  { id: 'descarga-cpe', label: 'Descarga CPE', icon: '🧾', soloPc: true },
 ]
 
 const COLOR_ESTADO = {
@@ -134,6 +135,7 @@ export default function InicioScreen() {
             >
               <div className="text-[16px] leading-none mb-1">{a.icon}</div>
               <div className="text-[10px] font-semibold text-ink leading-tight">{a.label}</div>
+              {a.soloPc && <div className="text-[8.5px] font-bold text-azul-inst mt-0.5">Solo en PC</div>}
             </button>
           ))}
           {PAGINAS_LOGIN.map((p) => (
