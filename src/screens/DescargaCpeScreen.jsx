@@ -8,7 +8,7 @@ import {
 } from '../services/cpeApi.js'
 import {
   COLUMNAS, CAMPOS, MAX_FILAS, PLANTILLA_DEFECTO, PLACEHOLDERS,
-  crearFilasVacias, esFilaVacia, asegurarFilaLibre, normalizarCampo,
+  FILAS_INICIALES, crearFilasVacias, esFilaVacia, asegurarFilaLibre, normalizarCampo,
   validarFilaCacheada, validarPlantilla, nombreEjemplo,
   parsearPortapapeles, aplicarPegado, filaExitosa, textoFallidos,
 } from '../utils/cpeTabla.js'
@@ -20,8 +20,8 @@ import {
 // ── Medidas y colores (una sola fuente para encabezado Y filas) ─────
 // El encabezado y cada fila usan EXACTAMENTE la misma plantilla de columnas,
 // todas en píxeles, así nunca se desalinean. La última columna se estira.
-const COLUMNAS_GRID = '40px 130px 140px 72px 104px 130px minmax(260px, 1fr)'
-const ANCHO_MINIMO_TABLA = 'min-w-[880px]' // suma de las columnas fijas + el mínimo de la última
+const COLUMNAS_GRID = '40px 130px 140px 72px 104px 130px minmax(260px, 1fr) 36px'
+const ANCHO_MINIMO_TABLA = 'min-w-[916px]' // suma de las columnas fijas + el mínimo de la última
 const ALTURA_FILA = 'h-9'
 const ALTURA_MAXIMA_TABLA = 'max-h-[46vh]'
 
@@ -44,7 +44,7 @@ const CLAVE_PREFS = 'tributaplus_cpe_prefs'
 
 const TEXTO_ESTADO = {
   en_cola: 'En cola…',
-  iniciando_sesion: 'Iniciando sesión en SUNAT (puede tardar unos 30 s)…',
+  iniciando_sesion: 'Iniciando sesión en SUNAT…',
   descargando: 'Descargando comprobantes…',
   completado: 'Descarga terminada en el servidor',
   error: 'La descarga se detuvo con un error',
@@ -81,6 +81,12 @@ function useEsCelular() {
     return () => mq.removeEventListener('change', alCambiar)
   }, [])
   return esCelular
+}
+
+// Deja la tabla con al menos FILAS_INICIALES filas y siempre una libre al final.
+function reponerFilas(filas) {
+  const relleno = filas.length < FILAS_INICIALES ? crearFilasVacias(FILAS_INICIALES - filas.length) : []
+  return asegurarFilaLibre([...filas, ...relleno])
 }
 
 // ── Piezas visuales ─────────────────────────────────────────────────
@@ -147,7 +153,7 @@ function AvisoSoloPc({ onVolver }) {
 }
 
 // Una fila de la tabla. memo: al escribir en una celda solo se redibuja esa fila.
-const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCambio, onSalir, onTecla }) {
+const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCambio, onSalir, onTecla, onEliminar }) {
   const validacion = validarFilaCacheada(fila)
 
   let estado = 'normal'
@@ -195,6 +201,19 @@ const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCam
         </div>
       ))}
       <div className={`px-2 text-[11px] truncate ${COLOR_TEXTO_OBS[estado]}`} title={observacion}>{observacion}</div>
+      <div className="flex items-center justify-center">
+        {!bloqueada && !esFilaVacia(fila) && (
+          <button
+            type="button"
+            onClick={() => onEliminar(idx)}
+            title="Eliminar esta fila (Ctrl + Supr)"
+            aria-label={`Eliminar fila ${idx + 1}`}
+            className="w-6 h-6 rounded-md text-[12px] leading-none text-muted hover:bg-[#FCE9EB] hover:text-rojo-sunat"
+          >
+            ✕
+          </button>
+        )}
+      </div>
     </div>
   )
 })
@@ -226,6 +245,7 @@ function DescargaCpePc() {
   const [errorGuardado, setErrorGuardado] = useState('')
   const [pendienteGuardar, setPendienteGuardar] = useState(false)
   const [toast, setToast] = useState('')
+  const [segundos, setSegundos] = useState(0) // tiempo transcurrido de la descarga en curso
   const cerrarToast = useCallback(() => setToast(''), [])
 
   // Referencias: valores que los temporizadores necesitan "frescos"
@@ -263,6 +283,15 @@ function DescargaCpePc() {
     const avisar = (e) => { e.preventDefault(); e.returnValue = '' }
     window.addEventListener('beforeunload', avisar)
     return () => window.removeEventListener('beforeunload', avisar)
+  }, [fase])
+
+  // Cronómetro: así se ve que la descarga avanza aunque SUNAT tarde en responder.
+  useEffect(() => {
+    if (fase !== 'ejecutando') return undefined
+    const inicio = Date.now()
+    setSegundos(0)
+    const t = setInterval(() => setSegundos(Math.floor((Date.now() - inicio) / 1000)), 1000)
+    return () => clearInterval(t)
   }, [fase])
 
   const bloqueada = fase !== 'edicion'
@@ -311,7 +340,17 @@ function DescargaCpePc() {
     })
   }, [])
 
+  // Quita una fila y deja la tabla con su mínimo de filas, siempre con una libre al final.
+  const eliminarFila = useCallback((idx) => {
+    setFilas((prev) => reponerFilas(prev.filter((_, i) => i !== idx)))
+  }, [])
+
   const moverConTeclas = useCallback((e, idx, col) => {
+    if (e.key === 'Delete' && e.ctrlKey) {
+      e.preventDefault()
+      eliminarFila(idx)
+      return
+    }
     const delta = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
     if (!delta) return
     const siguiente = document.querySelector(`[data-celda="${idx + delta}-${col}"]`)
@@ -320,7 +359,7 @@ function DescargaCpePc() {
       siguiente.focus()
       siguiente.select?.()
     }
-  }, [])
+  }, [eliminarFila])
 
   function posicionActiva() {
     const el = document.activeElement
@@ -373,6 +412,13 @@ function DescargaCpePc() {
     if (hayDatos && !window.confirm('¿Borrar todos los comprobantes de la tabla?')) return
     setFilas(crearFilasVacias())
     reiniciarResultados()
+  }
+
+  function eliminarFilasConError() {
+    setFilas((prev) => reponerFilas(prev.filter((f) => {
+      const v = validarFilaCacheada(f)
+      return v.vacia || v.errores.length === 0
+    })))
   }
 
   function agregarFila() {
@@ -614,6 +660,12 @@ function DescargaCpePc() {
   const procesados = tarea?.procesados || 0
   const porcentaje = total ? Math.round((procesados / total) * 100) : 0
   const textoEstado = fase === 'guardando' ? 'Guardando archivos…' : TEXTO_ESTADO[tarea?.estado] || ''
+  // Mientras SUNAT inicia sesión, la barra avanza por pasos (el servidor informa en cuál va).
+  const enLogin = fase === 'ejecutando' && (!tarea || tarea.estado === 'en_cola' || tarea.estado === 'iniciando_sesion')
+  const faseNum = tarea?.fase_num || 0
+  const faseTotal = tarea?.fase_total || 6
+  const porcentajeLogin = Math.max(4, Math.round((faseNum / faseTotal) * 100))
+  const porcentajeBarra = fase === 'terminado' ? 100 : enLogin ? porcentajeLogin : porcentaje
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
@@ -733,13 +785,18 @@ function DescargaCpePc() {
               <button onClick={agregarFila} disabled={bloqueada} className="text-[11.5px] font-semibold text-ink bg-white border border-bordersoft px-3 py-1.5 rounded-lg disabled:opacity-60">
                 + Fila
               </button>
+              {resumen.conError > 0 && (
+                <button onClick={eliminarFilasConError} disabled={bloqueada} className="text-[11.5px] font-semibold text-rojo-sunat bg-white border border-bordersoft px-3 py-1.5 rounded-lg disabled:opacity-60">
+                  Quitar filas con error
+                </button>
+              )}
               <button onClick={limpiarTabla} disabled={bloqueada} className="text-[11.5px] font-semibold text-rojo-sunat bg-white border border-bordersoft px-3 py-1.5 rounded-lg disabled:opacity-60">
                 Limpiar
               </button>
             </div>
             <p className="text-[10.5px] text-muted mb-2">
               En Excel copia las 5 columnas (Cód. operación, RUC emisor, Tipo, Serie, Número), haz clic en la primera
-              celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda.
+              celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda. Con la ✕ de cada fila (o Ctrl + Supr) la eliminas.
             </p>
 
             <div className={`overflow-auto ${ALTURA_MAXIMA_TABLA} border border-bordersoft rounded-xl`} onPaste={alPegar}>
@@ -754,6 +811,7 @@ function DescargaCpePc() {
                     <div key={c.campo} className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted truncate">{c.titulo}</div>
                   ))}
                   <div className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted">Observación</div>
+                  <div />
                 </div>
                 {filas.map((f, i) => (
                   <Fila
@@ -766,6 +824,7 @@ function DescargaCpePc() {
                     onCambio={cambiarCampo}
                     onSalir={normalizarAlSalir}
                     onTecla={moverConTeclas}
+                    onEliminar={eliminarFila}
                   />
                 ))}
               </div>
@@ -795,10 +854,20 @@ function DescargaCpePc() {
           ) : (
             <div>
               <div className="flex items-center justify-between gap-3 mb-1.5">
-                <div className="text-[12px] font-bold text-ink">
-                  {textoEstado}
-                  {tarea?.estado === 'descargando' && ` (${procesados}/${total})`}
-                  {fase === 'guardando' && guardado && ` ${guardado.hechos}/${guardado.total}`}
+                <div>
+                  <div className="text-[12px] font-bold text-ink">
+                    {textoEstado}
+                    {enLogin && faseNum > 0 && ` · paso ${faseNum} de ${faseTotal}`}
+                    {tarea?.estado === 'descargando' && fase === 'ejecutando' && ` (${procesados}/${total})`}
+                    {fase === 'guardando' && guardado && ` ${guardado.hechos}/${guardado.total}`}
+                    {fase === 'ejecutando' && <span className="font-normal text-muted"> · {segundos} s</span>}
+                  </div>
+                  {enLogin && (
+                    <div className="text-[11px] text-muted mt-0.5">
+                      {tarea?.fase_texto || 'Preparando la sesión…'}
+                      <span className="text-[10.5px]"> — el inicio de sesión tarda unos 20 s y se hace una sola vez por tanda.</span>
+                    </div>
+                  )}
                 </div>
                 <div className="text-[11px] text-muted">
                   {fase === 'terminado' && `✓ ${exitosas} bien · ${fallidas} con problema`}
@@ -807,7 +876,7 @@ function DescargaCpePc() {
               <div className="h-2 rounded-full bg-[#EAF1FA] overflow-hidden mb-2">
                 <div
                   className={`h-2 rounded-full transition-all ${fase === 'terminado' && (fallidas > 0 || errorGeneral) ? 'bg-ambar' : 'bg-azul-inst'}`}
-                  style={{ width: `${fase === 'terminado' ? 100 : porcentaje}%` }}
+                  style={{ width: `${porcentajeBarra}%` }}
                 />
               </div>
               {fase === 'terminado' && (
