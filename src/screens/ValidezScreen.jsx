@@ -17,8 +17,8 @@ import {
 } from '../utils/validezTabla.js'
 
 // ── Medidas y colores (encabezado y filas usan la MISMA plantilla) ──
-const COLUMNAS_GRID = '40px 130px 70px 90px 100px 110px minmax(240px, 1fr) 36px'
-const ANCHO_MINIMO_TABLA = 'min-w-[816px]'
+const COLUMNAS_GRID = '40px 130px 70px 90px 100px 110px 110px minmax(240px, 1fr) 36px'
+const ANCHO_MINIMO_TABLA = 'min-w-[926px]'
 const ALTURA_FILA = 'h-9'
 const ALTURA_MAXIMA_TABLA = 'max-h-[42vh]'
 
