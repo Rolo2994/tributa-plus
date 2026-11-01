@@ -2,6 +2,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { useApp } from '../context/AppContext.jsx'
 import Toast from '../components/Toast.jsx'
 import TablaResultados from '../components/TablaResultados.jsx'
+import Paginador from '../components/Paginador.jsx'
+import BarraFiltroTabla from '../components/BarraFiltroTabla.jsx'
+import { usePaginacion } from '../utils/usePaginacion.js'
 import {
   ejecutarValidez, consultarEstadoValidez, cancelarValidez,
   listarArchivosValidez, descargarArchivoValidez, borrarTareaValidez, obtenerResultadoValidez,
@@ -41,6 +44,15 @@ const TEXTO_ESTADO = {
 async function leerLineas(file) {
   const texto = (await file.text()).replace(/^\uFEFF/, '')
   return texto.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+}
+
+// Estado de una fila para el filtro: vacia | error | aviso | lista
+function estadoParaFiltro(fila, duplicada) {
+  const v = validarFilaCacheada(fila)
+  if (v.vacia) return 'vacia'
+  if (v.errores.length) return 'error'
+  if (duplicada || v.avisos.length) return 'aviso'
+  return 'lista'
 }
 
 function reponerFilas(filas) {
@@ -169,12 +181,17 @@ export default function ValidezScreen() {
   const [segundos, setSegundos] = useState(0)
   const [toast, setToast] = useState('')
   const cerrarToast = useCallback(() => setToast(''), [])
+  const [buscar, setBuscar] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todos')
 
   const tareaIdRef = useRef(null)
   const carpetaRef = useRef(null)
   const timerRef = useRef(null)
   const vivoRef = useRef(true)
   const fallosRedRef = useRef(0)
+  const visiblesRef = useRef([])
+  const pagRef = useRef(null)
+  const focoPendienteRef = useRef(null)
   carpetaRef.current = carpeta
 
   useEffect(() => {
@@ -222,6 +239,48 @@ export default function ValidezScreen() {
     })
     return { listas, conError, conAviso }
   }, [filas, duplicados])
+
+  // ── Filtro y paginación de la tabla ───────────────────────────────
+  const estadosFila = useMemo(
+    () => filas.map((f, i) => estadoParaFiltro(f, duplicados.has(i))),
+    [filas, duplicados]
+  )
+  const conteoEstados = useMemo(() => {
+    const c = { todos: 0, error: 0, aviso: 0, lista: 0 }
+    estadosFila.forEach((e) => { if (e !== 'vacia') { c.todos += 1; c[e] += 1 } })
+    return c
+  }, [estadosFila])
+  const opcionesFiltro = [
+    { valor: 'todos', texto: 'Todas', cant: conteoEstados.todos },
+    { valor: 'error', texto: 'Con error', cant: conteoEstados.error },
+    { valor: 'aviso', texto: 'Con aviso', cant: conteoEstados.aviso },
+    { valor: 'lista', texto: 'Listas', cant: conteoEstados.lista },
+  ]
+  const indicesVisibles = useMemo(() => {
+    const q = buscar.trim().toLowerCase()
+    const lista = []
+    filas.forEach((f, i) => {
+      if (!q && filtroEstado === 'todos') { lista.push(i); return } // sin filtro: todas, incluso las vacías
+      const est = estadosFila[i]
+      if (est === 'vacia') return
+      if (filtroEstado !== 'todos' && est !== filtroEstado) return
+      if (q && !CAMPOS.map((c) => f[c]).join(' ').toLowerCase().includes(q)) return
+      lista.push(i)
+    })
+    return lista
+  }, [filas, estadosFila, buscar, filtroEstado])
+  const pag = usePaginacion(indicesVisibles.length, 50, 'validez_entrada')
+  const indicesPagina = indicesVisibles.slice(pag.desde, pag.hasta)
+  visiblesRef.current = indicesVisibles
+  pagRef.current = pag
+
+  // Si el teclado pidió una fila de otra página, al cambiar de página se enfoca.
+  useEffect(() => {
+    const f = focoPendienteRef.current
+    if (!f) return
+    const el = document.querySelector(`[data-celda="${f.idx}-${f.col}"]`)
+    if (el) { el.focus(); el.select?.(); focoPendienteRef.current = null }
+  }, [pag.pagina])
 
   const resumenArchivos = useMemo(() => {
     const r = { total: 0, correctas: 0, conAviso: 0, conError: 0 }
@@ -271,12 +330,20 @@ export default function ValidezScreen() {
     }
     const delta = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
     if (!delta) return
-    const siguiente = document.querySelector(`[data-celda="${idx + delta}-${col}"]`)
+    const lista = visiblesRef.current
+    const pos = lista.indexOf(idx)
+    const destino = lista[pos + delta]
+    if (pos < 0 || destino === undefined) return
+    e.preventDefault()
+    const siguiente = document.querySelector(`[data-celda="${destino}-${col}"]`)
     if (siguiente) {
-      e.preventDefault()
       siguiente.focus()
       siguiente.select?.()
+      return
     }
+    // La fila está en otra página: se cambia de página y se enfoca al dibujarla.
+    focoPendienteRef.current = { idx: destino, col }
+    pagRef.current.setPagina(Math.floor((pos + delta) / pagRef.current.porPagina) + 1)
   }, [eliminarFila])
 
   function posicionActiva() {
@@ -599,6 +666,7 @@ export default function ValidezScreen() {
             <div className="mb-3">
               <TablaResultados
                 titulo="Resultado de la validación"
+                claveTabla="validez_resultado"
                 columnas={resultado.columnas}
                 filas={resultado.filas}
                 onDescargar={() => guardarReporte(tareaIdRef.current, true)}
@@ -703,6 +771,17 @@ export default function ValidezScreen() {
                   (para más, usa archivos .txt). Con la ✕ de cada fila (o Ctrl + Supr) la eliminas.
                 </p>
 
+                <BarraFiltroTabla
+                  buscar={buscar}
+                  onBuscar={(v) => { setBuscar(v); pag.setPagina(1) }}
+                  estado={filtroEstado}
+                  onEstado={(v) => { setFiltroEstado(v); pag.setPagina(1) }}
+                  opciones={opcionesFiltro}
+                  visibles={indicesVisibles.length}
+                  total={filas.length}
+                  placeholder="Buscar RUC, serie, número…"
+                />
+
                 <div className={`overflow-auto ${ALTURA_MAXIMA_TABLA} border border-bordersoft rounded-xl`} onPaste={alPegar}>
                   <div className={ANCHO_MINIMO_TABLA} role="table">
                     <div
@@ -717,11 +796,11 @@ export default function ValidezScreen() {
                       <div className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted">Observación</div>
                       <div />
                     </div>
-                    {filas.map((f, i) => (
+                    {indicesPagina.map((i) => (
                       <Fila
                         key={i}
                         idx={i}
-                        fila={f}
+                        fila={filas[i]}
                         duplicada={duplicados.has(i)}
                         bloqueada={bloqueada}
                         onCambio={cambiarCampo}
@@ -732,6 +811,7 @@ export default function ValidezScreen() {
                     ))}
                   </div>
                 </div>
+                <Paginador total={indicesVisibles.length} pag={pag} />
               </>
             ) : (
               <>

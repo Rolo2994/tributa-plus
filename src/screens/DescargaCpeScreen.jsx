@@ -2,6 +2,9 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { useApp } from '../context/AppContext.jsx'
 import CustomSelect from '../components/CustomSelect.jsx'
 import Toast from '../components/Toast.jsx'
+import Paginador from '../components/Paginador.jsx'
+import BarraFiltroTabla from '../components/BarraFiltroTabla.jsx'
+import { usePaginacion } from '../utils/usePaginacion.js'
 import {
   ejecutarCpe, consultarEstadoCpe, listarArchivosCpe,
   descargarArchivoCpe, descargarZipCpe, borrarTareaCpe,
@@ -64,6 +67,16 @@ function guardarPrefs(prefs) {
   } catch {
     // sin almacenamiento disponible: no pasa nada
   }
+}
+
+// Estado de una fila para el filtro: vacia | error | aviso | pendiente (lista, aún sin descargar) | ok
+function estadoParaFiltro(fila, resultado, pedido) {
+  if (esFilaVacia(fila)) return 'vacia'
+  if (resultado) return filaExitosa(resultado, pedido) ? 'ok' : 'error'
+  const v = validarFilaCacheada(fila)
+  if (v.errores.length) return 'error'
+  if (v.avisos.length) return 'aviso'
+  return 'pendiente'
 }
 
 // Deja la tabla con al menos FILAS_INICIALES filas y siempre una libre al final.
@@ -209,6 +222,8 @@ export default function DescargaCpeScreen() {
   const [toast, setToast] = useState('')
   const [segundos, setSegundos] = useState(0) // tiempo transcurrido de la descarga en curso
   const cerrarToast = useCallback(() => setToast(''), [])
+  const [buscar, setBuscar] = useState('')
+  const [filtroEstado, setFiltroEstado] = useState('todos')
 
   // Referencias: valores que los temporizadores necesitan "frescos"
   const indicesRef = useRef([]) // fila del servidor (1, 2, 3…) -> índice en la tabla
@@ -217,6 +232,9 @@ export default function DescargaCpeScreen() {
   const timerRef = useRef(null)
   const vivoRef = useRef(true)
   const fallosRedRef = useRef(0)
+  const visiblesRef = useRef([]) // índices de filas que cumplen el filtro (para moverse con el teclado)
+  const pagRef = useRef(null)
+  const focoPendienteRef = useRef(null)
   carpetaRef.current = carpeta
 
   useEffect(() => {
@@ -280,6 +298,52 @@ export default function DescargaCpeScreen() {
     return { listas, conError, conAviso }
   }, [filas])
 
+  // ── Filtro y paginación de la tabla ───────────────────────────────
+  const estadosFila = useMemo(
+    () => filas.map((f, i) => estadoParaFiltro(f, resultados[i], pedidoEjecutado)),
+    [filas, resultados, pedidoEjecutado]
+  )
+  const conteoEstados = useMemo(() => {
+    const c = { todos: 0, error: 0, aviso: 0, pendiente: 0, ok: 0 }
+    estadosFila.forEach((e) => { if (e !== 'vacia') { c.todos += 1; c[e] += 1 } })
+    return c
+  }, [estadosFila])
+  const opcionesFiltro = [
+    { valor: 'todos', texto: 'Todas', cant: conteoEstados.todos },
+    { valor: 'error', texto: 'Con error', cant: conteoEstados.error },
+    { valor: 'aviso', texto: 'Con aviso', cant: conteoEstados.aviso },
+    { valor: 'pendiente', texto: 'Listas sin descargar', cant: conteoEstados.pendiente },
+    { valor: 'ok', texto: 'Descargadas ✓', cant: conteoEstados.ok },
+  ]
+  const indicesVisibles = useMemo(() => {
+    const q = buscar.trim().toLowerCase()
+    const lista = []
+    filas.forEach((f, i) => {
+      if (!q && filtroEstado === 'todos') { lista.push(i); return } // sin filtro: todas, incluso las vacías
+      const est = estadosFila[i]
+      if (est === 'vacia') return
+      if (filtroEstado !== 'todos' && est !== filtroEstado) return
+      if (q) {
+        const texto = `${CAMPOS.map((c) => f[c]).join(' ')} ${resultados[i]?.error || ''}`.toLowerCase()
+        if (!texto.includes(q)) return
+      }
+      lista.push(i)
+    })
+    return lista
+  }, [filas, estadosFila, buscar, filtroEstado, resultados])
+  const pag = usePaginacion(indicesVisibles.length, 50, 'cpe_entrada')
+  const indicesPagina = indicesVisibles.slice(pag.desde, pag.hasta)
+  visiblesRef.current = indicesVisibles
+  pagRef.current = pag
+
+  // Si el teclado pidió una fila de otra página, al cambiar de página se enfoca.
+  useEffect(() => {
+    const f = focoPendienteRef.current
+    if (!f) return
+    const el = document.querySelector(`[data-celda="${f.idx}-${f.col}"]`)
+    if (el) { el.focus(); el.select?.(); focoPendienteRef.current = null }
+  }, [pag.pagina])
+
   // ── Edición de la tabla ───────────────────────────────────────────
   const cambiarCampo = useCallback((idx, campo, valor) => {
     setFilas((prev) => {
@@ -315,12 +379,20 @@ export default function DescargaCpeScreen() {
     }
     const delta = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
     if (!delta) return
-    const siguiente = document.querySelector(`[data-celda="${idx + delta}-${col}"]`)
+    const lista = visiblesRef.current
+    const pos = lista.indexOf(idx)
+    const destino = lista[pos + delta]
+    if (pos < 0 || destino === undefined) return
+    e.preventDefault()
+    const siguiente = document.querySelector(`[data-celda="${destino}-${col}"]`)
     if (siguiente) {
-      e.preventDefault()
       siguiente.focus()
       siguiente.select?.()
+      return
     }
+    // La fila está en otra página: se cambia de página y se enfoca al dibujarla.
+    focoPendienteRef.current = { idx: destino, col }
+    pagRef.current.setPagina(Math.floor((pos + delta) / pagRef.current.porPagina) + 1)
   }, [eliminarFila])
 
   function posicionActiva() {
@@ -761,6 +833,17 @@ export default function DescargaCpeScreen() {
               celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda. Con la ✕ de cada fila (o Ctrl + Supr) la eliminas.
             </p>
 
+            <BarraFiltroTabla
+              buscar={buscar}
+              onBuscar={(v) => { setBuscar(v); pag.setPagina(1) }}
+              estado={filtroEstado}
+              onEstado={(v) => { setFiltroEstado(v); pag.setPagina(1) }}
+              opciones={opcionesFiltro}
+              visibles={indicesVisibles.length}
+              total={filas.length}
+              placeholder="Buscar RUC, serie, número, error…"
+            />
+
             <div className={`overflow-auto ${ALTURA_MAXIMA_TABLA} border border-bordersoft rounded-xl`} onPaste={alPegar}>
               <div className={ANCHO_MINIMO_TABLA} role="table">
                 <div
@@ -775,11 +858,11 @@ export default function DescargaCpeScreen() {
                   <div className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted">Observación</div>
                   <div />
                 </div>
-                {filas.map((f, i) => (
+                {indicesPagina.map((i) => (
                   <Fila
                     key={i}
                     idx={i}
-                    fila={f}
+                    fila={filas[i]}
                     resultado={resultados[i]}
                     pedido={pedidoEjecutado}
                     bloqueada={bloqueada}
@@ -791,6 +874,7 @@ export default function DescargaCpeScreen() {
                 ))}
               </div>
             </div>
+            <Paginador total={indicesVisibles.length} pag={pag} />
           </div>
         </div>
       </div>

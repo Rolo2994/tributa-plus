@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Toast from '../components/Toast.jsx'
 import TablaResultados from '../components/TablaResultados.jsx'
+import ResumenMensual from '../components/ResumenMensual.jsx'
 import {
   ejecutarDetracciones, consultarEstadoDetracciones, cancelarDetracciones,
   obtenerResultadoDetracciones, descargarArchivoDetracciones, borrarTareaDetracciones,
@@ -83,6 +84,7 @@ export default function DetraccionesScreen() {
   const [fase, setFase] = useState('edicion') // edicion | ejecutando | terminado
   const [tarea, setTarea] = useState(null)
   const [resultado, setResultado] = useState(null) // { columnas, filas }
+  const [mesFiltro, setMesFiltro] = useState(null) // { anio, mes } elegido en el resumen
   const [errorGeneral, setErrorGeneral] = useState('')
   const [cancelando, setCancelando] = useState(false)
   const [descargando, setDescargando] = useState(false)
@@ -192,6 +194,7 @@ export default function DetraccionesScreen() {
       return
     }
     setResultado(null)
+    setMesFiltro(null)
     setCancelando(false)
     ultimoLogRef.current = 0
     setTarea({ estado: 'en_cola', total: bloques, procesados: 0, fase_texto: 'En cola' })
@@ -252,6 +255,7 @@ export default function DetraccionesScreen() {
     setFase('edicion')
     setTarea(null)
     setResultado(null)
+    setMesFiltro(null)
     setErrorGeneral('')
     setCancelando(false)
   }
@@ -260,6 +264,18 @@ export default function DetraccionesScreen() {
   const procesados = tarea?.procesados || 0
   const porcentaje = fase === 'terminado' ? 100 : total ? Math.round((procesados / total) * 100) : 0
   const hayDudosos = (tarea?.dudosos || []).length > 0
+
+  // Filtro por mes (viene del resumen): usa las columnas AÑO y MES de la tabla.
+  const filtroMes = useMemo(() => {
+    if (!mesFiltro || !resultado) return undefined
+    const iAnio = resultado.columnas.indexOf('A\u00d1O')
+    const iMes = resultado.columnas.indexOf('MES')
+    if (iAnio < 0 || iMes < 0) return undefined
+    return {
+      condiciones: [{ col: iAnio, valor: String(mesFiltro.anio) }, { col: iMes, valor: String(mesFiltro.mes) }],
+      etiqueta: `Mes de pago: ${String(mesFiltro.mes).padStart(2, '0')}/${mesFiltro.anio}`,
+    }
+  }, [mesFiltro, resultado])
 
   return (
     <div className="relative flex-1 flex flex-col min-h-0">
@@ -321,14 +337,27 @@ export default function DetraccionesScreen() {
 
           {fase === 'terminado' && resultado && (
             resultado.filas.length > 0 ? (
-              <TablaResultados
-                titulo="Pagos de detracciones"
-                columnas={resultado.columnas}
-                filas={resultado.filas}
-                onDescargar={tarea?.archivos?.length ? descargarExcel : undefined}
-                descargando={descargando}
-                onCopiado={setToast}
-              />
+              <div className="flex flex-col gap-3">
+                <ResumenMensual
+                  columnas={resultado.columnas}
+                  filas={resultado.filas}
+                  fi={rango.fi}
+                  ff={rango.ff}
+                  activo={mesFiltro}
+                  onElegir={setMesFiltro}
+                />
+                <TablaResultados
+                  titulo="Pagos de detracciones"
+                  columnas={resultado.columnas}
+                  filas={resultado.filas}
+                  onDescargar={tarea?.archivos?.length ? descargarExcel : undefined}
+                  descargando={descargando}
+                  onCopiado={setToast}
+                  filtroExterno={filtroMes}
+                  onQuitarFiltroExterno={() => setMesFiltro(null)}
+                  claveTabla="detracciones"
+                />
+              </div>
             ) : (
               <div className="bg-white rounded-xl border border-[#F0F3F7] shadow-card p-5 text-center text-[12px] text-muted">
                 SUNAT no devolvió pagos de detracciones en ese rango de fechas.
