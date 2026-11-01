@@ -18,14 +18,14 @@ import InicioScreen from './screens/InicioScreen.jsx'
 import DashboardScreen from './screens/DashboardScreen.jsx'
 import BuzonScreen from './screens/BuzonScreen.jsx'
 import ValidezScreen from './screens/ValidezScreen.jsx'
-import DetraccScreen from './screens/DetraccScreen.jsx'
+import DetraccionesScreen from './screens/DetraccionesScreen.jsx'
 import SireScreen from './screens/SireScreen.jsx'
 import DescargaCpeScreen from './screens/DescargaCpeScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 
 const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, dashboard: DashboardScreen,
-  buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccScreen, 'buzon-ejecutar': BuzonEjecutarScreen,
+  buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccionesScreen, 'buzon-ejecutar': BuzonEjecutarScreen,
   sire: SireScreen, 'descarga-cpe': DescargaCpeScreen, settings: SettingsScreen, 
 }
 const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'descarga-cpe', 'buzon-ejecutar', 'ajustes-workspace'])

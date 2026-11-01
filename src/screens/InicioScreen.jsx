@@ -15,7 +15,7 @@ const ACCIONES = [
   { id: 'validez', label: 'Validez CP', icon: '🔎' },
   { id: 'detracc', label: 'Detracciones', icon: '📊' },
   { id: 'sire', label: 'SIRE', icon: '⬇' },
-  { id: 'descarga-cpe', label: 'Descarga CPE', icon: '🧾', soloPc: true },
+  { id: 'descarga-cpe', label: 'Descarga CPE', icon: '🧾' },
 ]
 
 const COLOR_ESTADO = {

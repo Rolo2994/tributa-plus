@@ -66,23 +66,6 @@ function guardarPrefs(prefs) {
   }
 }
 
-// ── ¿Celular? Esta acción se usa desde computadora ──────────────────
-function detectarCelular() {
-  const angosto = window.matchMedia('(max-width: 767px)').matches
-  const movil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  return angosto || movil
-}
-function useEsCelular() {
-  const [esCelular, setEsCelular] = useState(detectarCelular)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)')
-    const alCambiar = () => setEsCelular(detectarCelular())
-    mq.addEventListener('change', alCambiar)
-    return () => mq.removeEventListener('change', alCambiar)
-  }, [])
-  return esCelular
-}
-
 // Deja la tabla con al menos FILAS_INICIALES filas y siempre una libre al final.
 function reponerFilas(filas) {
   const relleno = filas.length < FILAS_INICIALES ? crearFilasVacias(FILAS_INICIALES - filas.length) : []
@@ -128,27 +111,6 @@ function Pildora({ activa, onClick, disabled, children }) {
     >
       {activa ? '✓ ' : ''}{children}
     </button>
-  )
-}
-
-function AvisoSoloPc({ onVolver }) {
-  return (
-    <div className="relative flex-1 flex flex-col min-h-0">
-      <Encabezado onVolver={onVolver} />
-      <div className="flex-1 overflow-y-auto px-4 pt-6">
-        <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-5 text-center">
-          <div className="text-[34px] leading-none mb-2">💻</div>
-          <div className="font-display font-bold text-[15px] mb-1.5">Disponible en computadora</div>
-          <p className="text-[12px] text-muted leading-relaxed mb-4">
-            Esta acción necesita pegar datos desde Excel y elegir una carpeta de tu PC para guardar los
-            archivos, algo que se hace mejor en una computadora. Ábrela desde tu PC con Chrome o Edge.
-          </p>
-          <button onClick={onVolver} className="w-full bg-azul-dark text-white text-[13px] font-bold py-3 rounded-2xl">
-            Volver
-          </button>
-        </div>
-      </div>
-    </div>
   )
 }
 
@@ -218,8 +180,8 @@ const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCam
   )
 })
 
-// ── Pantalla en PC ──────────────────────────────────────────────────
-function DescargaCpePc() {
+// ── Pantalla (PC y celular) ─────────────────────────────────────────
+export default function DescargaCpeScreen() {
   const { rucs, activeRuc, goScreen, pushLog } = useApp()
   const prefs = useRef(leerPrefs()).current
 
@@ -837,7 +799,7 @@ function DescargaCpePc() {
       <div className="border-t border-bordersoft bg-white px-4 md:px-8 py-3">
         <div className="max-w-[1100px] mx-auto">
           {fase === 'edicion' ? (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 text-[11.5px] text-muted">
                 {resumen.listas + resumen.conError === 0
                   ? 'Pega los comprobantes para empezar.'
@@ -853,7 +815,7 @@ function DescargaCpePc() {
             </div>
           ) : (
             <div>
-              <div className="flex items-center justify-between gap-3 mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
                 <div>
                   <div className="text-[12px] font-bold text-ink">
                     {textoEstado}
@@ -906,10 +868,4 @@ function DescargaCpePc() {
       </div>
     </div>
   )
-}
-
-export default function DescargaCpeScreen() {
-  const { goScreen } = useApp()
-  const esCelular = useEsCelular()
-  return esCelular ? <AvisoSoloPc onVolver={() => goScreen('inicio')} /> : <DescargaCpePc />
 }
