@@ -65,3 +65,8 @@ export async function borrarTareaValidez(tareaId) {
   const res = await fetch(`${BASE_URL}/validez/${tareaId}`, { method: 'DELETE', headers: wsHeaders() })
   return res.json()
 }
+// Devuelve { ok, columnas:[...], filas:[[...]], total } para mostrar la tabla en pantalla.
+export async function obtenerResultadoValidez(tareaId) {
+  const res = await fetch(`${BASE_URL}/validez/resultado/${tareaId}`, { headers: wsHeaders() })
+  return res.json()
+}

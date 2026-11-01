@@ -1,9 +1,10 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Toast from '../components/Toast.jsx'
+import TablaResultados from '../components/TablaResultados.jsx'
 import {
   ejecutarValidez, consultarEstadoValidez, cancelarValidez,
-  listarArchivosValidez, descargarArchivoValidez, borrarTareaValidez,
+  listarArchivosValidez, descargarArchivoValidez, borrarTareaValidez, obtenerResultadoValidez,
 } from '../services/validezApi.js'
 import {
   soportaSelectorCarpeta, elegirCarpeta, asegurarPermiso,
@@ -34,23 +35,6 @@ const TEXTO_ESTADO = {
   validando: 'Validando comprobantes…',
   completado: 'Validación terminada',
   error: 'La validación se detuvo con un error',
-}
-
-// ── ¿Celular? Esta acción se usa desde computadora ──────────────────
-function detectarCelular() {
-  const angosto = window.matchMedia('(max-width: 767px)').matches
-  const movil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-  return angosto || movil
-}
-function useEsCelular() {
-  const [esCelular, setEsCelular] = useState(detectarCelular)
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 767px)')
-    const alCambiar = () => setEsCelular(detectarCelular())
-    mq.addEventListener('change', alCambiar)
-    return () => mq.removeEventListener('change', alCambiar)
-  }, [])
-  return esCelular
 }
 
 // Lee un .txt/.csv y devuelve sus líneas no vacías (sin la marca BOM del inicio).
@@ -86,27 +70,6 @@ function Tarjeta({ numero, titulo, children, className = '' }) {
         <div className="text-[12px] font-bold text-ink">{titulo}</div>
       </div>
       {children}
-    </div>
-  )
-}
-
-function AvisoSoloPc({ onVolver }) {
-  return (
-    <div className="relative flex-1 flex flex-col min-h-0">
-      <Encabezado onVolver={onVolver} />
-      <div className="flex-1 overflow-y-auto px-4 pt-6">
-        <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-5 text-center">
-          <div className="text-[34px] leading-none mb-2">💻</div>
-          <div className="font-display font-bold text-[15px] mb-1.5">Disponible en computadora</div>
-          <p className="text-[12px] text-muted leading-relaxed mb-4">
-            Esta acción necesita pegar datos desde Excel o elegir archivos .txt, y una carpeta de tu PC
-            para guardar el reporte. Ábrela desde tu PC con Chrome o Edge.
-          </p>
-          <button onClick={onVolver} className="w-full bg-azul-dark text-white text-[13px] font-bold py-3 rounded-2xl">
-            Volver
-          </button>
-        </div>
-      </div>
     </div>
   )
 }
@@ -179,8 +142,8 @@ function PestanaModo({ activa, onClick, disabled, children }) {
   )
 }
 
-// ── Pantalla en PC ──────────────────────────────────────────────────
-function ValidezPc() {
+// ── Pantalla (PC y celular) ─────────────────────────────────────────
+export default function ValidezScreen() {
   const { activeRuc, goScreen, pushLog } = useApp()
   const inputRef = useRef(null)
 
@@ -201,6 +164,7 @@ function ValidezPc() {
   const [errorGuardado, setErrorGuardado] = useState('')
   const [pendienteGuardar, setPendienteGuardar] = useState(false)
   const [guardado, setGuardado] = useState(null) // { modo, nombres }
+  const [resultado, setResultado] = useState(null) // { columnas, filas } para la tabla en pantalla
   const [cancelando, setCancelando] = useState(false)
   const [segundos, setSegundos] = useState(0)
   const [toast, setToast] = useState('')
@@ -218,6 +182,7 @@ function ValidezPc() {
     return () => {
       vivoRef.current = false
       clearTimeout(timerRef.current)
+      if (tareaIdRef.current) borrarTareaValidez(tareaIdRef.current).catch(() => {})
     }
   }, [])
 
@@ -436,7 +401,6 @@ function ValidezPc() {
       const items = lista.archivos || []
       if (items.length === 0) {
         setGuardado({ modo: 'nada', nombres: [] })
-        await borrarTareaValidez(id).catch(() => {})
         setFase('terminado')
         return
       }
@@ -478,7 +442,6 @@ function ValidezPc() {
         setGuardado({ modo: 'descargas', nombres: [excel.nombre] })
         pushLog(`✓ Reporte descargado en tu carpeta de Descargas: ${excel.nombre}`)
       }
-      await borrarTareaValidez(id).catch(() => {})
       setFase('terminado')
     } catch (err) {
       setErrorGuardado(`No se pudo guardar el reporte: ${err?.message || err}. Sigue en el servidor unas horas.`)
@@ -486,6 +449,21 @@ function ValidezPc() {
       setFase('terminado')
     }
   }, [pushLog])
+
+  // ── Resultado en pantalla (para copiar a Excel) ───────────────────
+  async function mostrarResultado(id) {
+    try {
+      const r = await obtenerResultadoValidez(id)
+      if (!vivoRef.current) return
+      if (!r.ok) throw new Error(r.error || 'No se pudo leer la tabla')
+      setResultado({ columnas: r.columnas || [], filas: r.filas || [] })
+      pushLog(`✓ Validez CP: ${r.total ?? (r.filas || []).length} fila(s) en la tabla. Copia o descarga el Excel cuando quieras.`)
+    } catch (err) {
+      setErrorGeneral(`La validación terminó, pero no se pudo traer la tabla: ${err?.message || err}`)
+      setPendienteGuardar(true)
+    }
+    setFase('terminado')
+  }
 
   // ── Seguimiento de la tarea ───────────────────────────────────────
   async function vigilar(id) {
@@ -501,7 +479,7 @@ function ValidezPc() {
       }
       setTarea(est)
       if (est.estado === 'completado') {
-        await guardarReporte(id, false)
+        await mostrarResultado(id)
         return
       }
       if (est.estado === 'error') {
@@ -552,6 +530,7 @@ function ValidezPc() {
     setErrorGuardado('')
     setPendienteGuardar(false)
     setCancelando(false)
+    setResultado(null)
     setTarea({ estado: 'en_cola', total: totalAEnviar, procesados: 0, correctos: 0, con_observaciones: 0, errores: 0 })
     setFase('ejecutando')
 
@@ -586,6 +565,8 @@ function ValidezPc() {
   }
 
   function nuevaValidacion() {
+    if (tareaIdRef.current) borrarTareaValidez(tareaIdRef.current).catch(() => {})
+    setResultado(null)
     setFase('edicion')
     setTarea(null)
     setErrorGeneral('')
@@ -599,7 +580,7 @@ function ValidezPc() {
   const total = tarea?.total || 0
   const procesados = tarea?.procesados || 0
   const porcentaje = fase === 'terminado' ? 100 : total ? Math.round((procesados / total) * 100) : 0
-  const textoEstado = fase === 'guardando' ? 'Guardando el reporte…' : TEXTO_ESTADO[tarea?.estado] || ''
+  const textoEstado = fase === 'guardando' ? 'Descargando el reporte…' : TEXTO_ESTADO[tarea?.estado] || ''
   const archivoSel = archivos.find((a) => a.id === seleccion)
 
   return (
@@ -614,15 +595,29 @@ function ValidezPc() {
             <div className="mb-3 bg-[#FCE9EB] text-rojo-sunat text-[11.5px] rounded-xl px-3 py-2.5 font-semibold">{errorGeneral}</div>
           )}
 
+          {resultado && (
+            <div className="mb-3">
+              <TablaResultados
+                titulo="Resultado de la validación"
+                columnas={resultado.columnas}
+                filas={resultado.filas}
+                onDescargar={() => guardarReporte(tareaIdRef.current, true)}
+                descargando={fase === 'guardando'}
+                onCopiado={setToast}
+                colorFila={(f) => (f[7] === 'ERROR' || f[7] === 'ERROR FORMATO' ? 'error' : f[10] ? 'aviso' : undefined)}
+              />
+            </div>
+          )}
+
           {pendienteGuardar && (
             <div className="mb-3 bg-[#FFF6DB] text-[#8A6A00] text-[11.5px] rounded-xl px-3 py-2.5 flex items-center justify-between gap-3">
-              <span>{errorGuardado || 'El reporte sigue en el servidor. Puedes guardarlo ahora.'}</span>
+              <span>{errorGuardado || 'El reporte sigue en el servidor unas horas. Puedes descargarlo ahora.'}</span>
               <button
                 onClick={() => guardarReporte(tareaIdRef.current, true)}
                 disabled={!tareaIdRef.current}
                 className="font-bold underline whitespace-nowrap disabled:opacity-50"
               >
-                Guardar reporte ahora
+                Descargar reporte ahora
               </button>
             </div>
           )}
@@ -826,7 +821,7 @@ function ValidezPc() {
       <div className="border-t border-bordersoft bg-white px-4 md:px-8 py-3">
         <div className="max-w-[1000px] mx-auto">
           {fase === 'edicion' ? (
-            <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1 text-[11.5px] text-muted">
                 {totalAEnviar === 0
                   ? (modo === 'tabla' ? 'Pega los comprobantes para empezar.' : 'Agrega uno o más archivos .txt para empezar.')
@@ -844,7 +839,7 @@ function ValidezPc() {
             </div>
           ) : (
             <div>
-              <div className="flex items-center justify-between gap-3 mb-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
                 <div className="text-[12px] font-bold text-ink">
                   {textoEstado}
                   {tarea?.estado === 'validando' && fase === 'ejecutando' && ` (${procesados}/${total})`}
@@ -896,10 +891,4 @@ function ValidezPc() {
       </div>
     </div>
   )
-}
-
-export default function ValidezScreen() {
-  const { goScreen } = useApp()
-  const esCelular = useEsCelular()
-  return esCelular ? <AvisoSoloPc onVolver={() => goScreen('inicio')} /> : <ValidezPc />
 }
