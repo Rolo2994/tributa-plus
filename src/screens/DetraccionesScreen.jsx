@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext.jsx'
 import Toast from '../components/Toast.jsx'
 import TablaResultados from '../components/TablaResultados.jsx'
 import ResumenMensual from '../components/ResumenMensual.jsx'
+import DetalleBloques from '../components/DetalleBloques.jsx'
 import {
   ejecutarDetracciones, consultarEstadoDetracciones, cancelarDetracciones,
   obtenerResultadoDetracciones, descargarArchivoDetracciones, borrarTareaDetracciones,
@@ -126,10 +127,12 @@ export default function DetraccionesScreen() {
   const bloques = dias > 0 ? Math.ceil(dias / 30) : 0
   const rangoValido = dias > 0 && dias <= MAX_DIAS
 
-  // Pasa al log de la app solo las líneas nuevas del servidor.
-  function pasarLog(lineas) {
-    const nuevas = (lineas || []).slice(ultimoLogRef.current)
-    ultimoLogRef.current = (lineas || []).length
+  // Pasa al log de la app solo las líneas nuevas del servidor (el servidor manda las últimas 60 y el total).
+  function pasarLog(lineas, totalLog) {
+    const lista = lineas || []
+    const total = totalLog ?? lista.length
+    const nuevas = total > ultimoLogRef.current ? lista.slice(Math.max(0, lista.length - (total - ultimoLogRef.current))) : []
+    ultimoLogRef.current = total
     nuevas.forEach((l) => pushLog(`Detracciones: ${l}`))
   }
 
@@ -160,7 +163,7 @@ export default function DetraccionesScreen() {
         return
       }
       setTarea(est)
-      pasarLog(est.log)
+      pasarLog(est.log, est.log_total)
       if (est.estado === 'completado') {
         await terminarConResultado(id, est)
         return
@@ -335,6 +338,10 @@ export default function DetraccionesScreen() {
             </p>
           )}
 
+          {fase !== 'edicion' && (
+            <DetalleBloques bloques={tarea?.bloques} log={tarea?.log} terminado={fase === 'terminado'} />
+          )}
+
           {fase === 'terminado' && resultado && (
             resultado.filas.length > 0 ? (
               <div className="flex flex-col gap-3">
@@ -345,6 +352,7 @@ export default function DetraccionesScreen() {
                   ff={rango.ff}
                   activo={mesFiltro}
                   onElegir={setMesFiltro}
+                  problemas={(tarea?.bloques || []).filter((b) => b.estado === 'dudoso' || b.estado === 'error')}
                 />
                 <TablaResultados
                   titulo="Pagos de detracciones"
@@ -365,12 +373,6 @@ export default function DetraccionesScreen() {
             )
           )}
 
-          {fase === 'terminado' && hayDudosos && (
-            <div className="mt-3 bg-[#FFF6DB] text-[#8A6A00] text-[11.5px] rounded-xl px-3 py-2.5">
-              <b>Atención:</b> estos rangos no se pudieron confirmar (ni datos ni «sin registros»). Vuelve a consultarlos:
-              <div className="mt-1 font-mono text-[10.5px]">{tarea.dudosos.join(' · ')}</div>
-            </div>
-          )}
         </div>
       </div>
 

@@ -23,7 +23,8 @@ function mesesDelRango(fi, ff) {
 // Usa las columnas "AÑO" y "MES" que arma el servidor. Al hacer clic en un mes,
 // la tabla de abajo se filtra a ese mes (clic otra vez = quitar el filtro).
 //   activo: { anio, mes } | null     onElegir(anio, mes) | onElegir(null)
-export default function ResumenMensual({ columnas, filas, fi, ff, activo, onElegir }) {
+//   problemas: [{ fi, ff }] consultas que no se pudieron confirmar ('aaaa-mm-dd'); sus meses se marcan con ⚠
+export default function ResumenMensual({ columnas, filas, fi, ff, activo, onElegir, problemas = [] }) {
   const idxAnio = columnas.indexOf('AÑO')
   const idxMes = columnas.indexOf('MES')
 
@@ -78,19 +79,24 @@ export default function ResumenMensual({ columnas, filas, fi, ff, activo, onEleg
               {meses.map((x) => {
                 const n = conteo.get(`${x.anio}-${x.mes}`) || 0
                 const esActivo = activo && activo.anio === x.anio && activo.mes === x.mes
+                const ini = `${x.anio}-${String(x.mes).padStart(2, '0')}-01`
+                const fin = `${x.anio}-${String(x.mes).padStart(2, '0')}-31`
+                const conProblema = problemas.some((pr) => pr.fi <= fin && pr.ff >= ini)
                 return (
                   <td key={`${x.anio}-${x.mes}`} className="p-0.5 text-center">
                     <button
                       type="button"
                       disabled={n === 0}
+                      title={conProblema ? 'Alguna consulta de este mes no se pudo confirmar: puede faltar información' : undefined}
                       onClick={() => onElegir(esActivo ? null : x)}
                       className={`w-full min-w-[46px] h-7 rounded-md text-[12px] font-bold tabular-nums ${
                         esActivo ? 'bg-azul-inst text-white'
+                          : conProblema ? 'bg-[#FFF6DB] text-[#8A6A00]'
                           : n === 0 ? 'bg-[#F7F9FB] text-muted font-normal'
                             : 'bg-[#EAF1FA] text-azul-inst hover:bg-[#D6E8FF]'
                       }`}
                     >
-                      {n}
+                      {n}{conProblema ? ' ⚠' : ''}
                     </button>
                   </td>
                 )
