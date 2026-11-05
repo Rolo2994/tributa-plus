@@ -14,6 +14,7 @@ const ACCIONES = [
   { id: 'buzon-ejecutar', label: 'Buzón PDF', icon: '📥' },
   { id: 'validez', label: 'Validez CP', icon: '🔎' },
   { id: 'detracc', label: 'Detracciones', icon: '📊' },
+  { id: 'ficha-ruc', label: 'Ficha RUC', icon: '📄' },
   { id: 'sire', label: 'SIRE', icon: '⬇' },
   { id: 'descarga-cpe', label: 'Descarga CPE', icon: '🧾' },
 ]

@@ -19,20 +19,21 @@ import DashboardScreen from './screens/DashboardScreen.jsx'
 import BuzonScreen from './screens/BuzonScreen.jsx'
 import ValidezScreen from './screens/ValidezScreen.jsx'
 import DetraccionesScreen from './screens/DetraccionesScreen.jsx'
+import FichaRucScreen from './screens/FichaRucScreen.jsx'
 import SireScreen from './screens/SireScreen.jsx'
 import DescargaCpeScreen from './screens/DescargaCpeScreen.jsx'
 import SettingsScreen from './screens/SettingsScreen.jsx'
 
 const SCREENS = {
   home: HomeScreen, alerts: AlertsScreen, inicio: InicioScreen, dashboard: DashboardScreen,
-  buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccionesScreen, 'buzon-ejecutar': BuzonEjecutarScreen,
+  buzon: BuzonScreen, validez: ValidezScreen, detracc: DetraccionesScreen, 'ficha-ruc': FichaRucScreen, 'buzon-ejecutar': BuzonEjecutarScreen,
   sire: SireScreen, 'descarga-cpe': DescargaCpeScreen, settings: SettingsScreen, 
 }
-const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'sire', 'descarga-cpe', 'buzon-ejecutar', 'ajustes-workspace'])
+const SUBSCREENS = new Set(['buzon', 'validez', 'detracc', 'ficha-ruc', 'sire', 'descarga-cpe', 'buzon-ejecutar', 'ajustes-workspace'])
 
 const TITULOS = {
   home: 'RUCs', alerts: 'Alertas', inicio: 'Inicio', dashboard: 'Dashboard tributario',
-  buzon: 'Buzón PDF', validez: 'Validez CP', detracc: 'Detracciones', sire: 'SIRE', settings: 'Ajustes',
+  buzon: 'Buzón PDF', validez: 'Validez CP', detracc: 'Detracciones', 'ficha-ruc': 'Ficha RUC y Reporte', sire: 'SIRE', settings: 'Ajustes',
   'buzon-ejecutar': 'Ejecutar Buzón PDF', 'ajustes-workspace': 'Ajustes de tu cuenta',
   'descarga-cpe': 'Descarga de comprobantes',
 }
