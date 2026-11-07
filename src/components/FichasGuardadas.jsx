@@ -24,6 +24,11 @@ const CLASE_CAMPO = 'w-full h-10 text-[12.5px] text-ink px-2.5 rounded-lg border
 const CLASE_MINI = 'text-[11px] font-semibold text-azul-inst bg-[#EAF1FA] border border-[#C9D6E4] px-2.5 py-1.5 rounded-lg disabled:opacity-60'
 const VISOR_CERRADO = { abierto: false, archivo: null, file: null, cargando: false, error: '' }
 
+// "Compartir" del sistema solo se usa en celular/tablet. En Windows el cuadro de Compartir del navegador
+// puede quedarse congelado, así que en computadora el PDF se descarga y se adjunta en WhatsApp a mano.
+const ES_CELULAR = typeof navigator !== 'undefined'
+  && (navigator.userAgentData?.mobile === true || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || ''))
+
 const claveCache = (a) => `${a.nombre}|${a.kb}` // si la ficha se reemplaza (otro tamaño) se vuelve a bajar
 
 function fechaCorta(iso) {
@@ -158,12 +163,12 @@ export default function FichasGuardadas({ archivos, cargado, onRecargar, avisar 
         .then(() => pushLog('📋 Texto copiado — pégalo en el mensaje de WhatsApp'))
         .catch((err) => pushLog(`✗ No se pudo copiar el texto: ${err?.message || err}`))
     }
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (ES_CELULAR && navigator.canShare && navigator.canShare({ files: [file] })) {
       await navigator.share({ files: [file] })
     } else {
-      // Computadora o navegador sin "Compartir": se descarga el PDF.
+      // Computadora (o navegador sin "Compartir"): se descarga el PDF; el texto ya quedó copiado.
       descargarBlob(file, file.name)
-      avisar?.(`Descargado: ${file.name}`)
+      avisar?.(`Descargado: ${file.name}. Adjúntalo en WhatsApp (el texto ya está copiado).`)
     }
   }
 
@@ -309,7 +314,7 @@ export default function FichasGuardadas({ archivos, cargado, onRecargar, avisar 
                 <IconoOjo />
               </button>
               <button type="button" onClick={() => enviarUno(a)} disabled={enviando || bajando} className={BTN_ENVIAR_FILA}>
-                {bajando ? 'Bajando…' : 'Enviar'}
+                {bajando ? 'Bajando…' : ES_CELULAR ? 'Enviar' : 'Descargar'}
               </button>
               <button type="button" onClick={() => borrarUna(a)} className={`${BTN_ICONO} ${COLOR_ELIMINAR}`} title="Eliminar" aria-label="Eliminar ficha">
                 🗑
