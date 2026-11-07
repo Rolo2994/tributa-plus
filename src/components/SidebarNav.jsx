@@ -28,6 +28,7 @@ const ACCIONES_SUNAT = [
   { id: 'buzon-ejecutar', label: 'Buzón PDF' },
   { id: 'validez', label: 'Validez CP' },
   { id: 'detracc', label: 'Detracciones' },
+  { id: 'ficha-ruc', label: 'Ficha RUC' },
   { id: 'sire', label: 'SIRE' },
   { id: 'descarga-cpe', label: 'Descarga CPE' },
 ]
