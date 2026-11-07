@@ -1,13 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../context/AppContext.jsx'
 import Toast from '../components/Toast.jsx'
-import Paginador from '../components/Paginador.jsx'
-import { usePaginacion } from '../utils/usePaginacion.js'
+import FichasGuardadas from '../components/FichasGuardadas.jsx'
 import {
-  ejecutarFichaRuc, consultarEstadoFichaRuc, cancelarFichaRuc, listarFichasRuc,
-  descargarFichaRuc, borrarFichaRuc, quitarBloqueoFichaRuc,
+  ejecutarFichaRuc, consultarEstadoFichaRuc, cancelarFichaRuc, listarFichasRuc, quitarBloqueoFichaRuc,
 } from '../services/fichaRucApi.js'
-import { descargarBlob } from '../utils/carpetaPc.js'
 
 // ── Constantes ──────────────────────────────────────────────────────
 const INTERVALO_ESTADO_MS = 2500
@@ -40,10 +37,6 @@ function guardar(clave, valor) {
 function minutosTexto(segundos) {
   const m = Math.max(1, Math.ceil((segundos || 0) / 60))
   return `${m} minuto${m === 1 ? '' : 's'}`
-}
-function fechaCorta(iso) {
-  const [a, m, d] = String(iso || '').split('-')
-  return a && m && d ? `${d}/${m}/${a}` : iso
 }
 
 // ── Piezas visuales (mismo estilo que las otras pantallas) ──────────
@@ -119,8 +112,6 @@ export default function FichaRucScreen() {
   const cerrarToast = useCallback(() => setToast(''), [])
 
   const [info, setInfo] = useState(null) // respuesta de /ficha-ruc/archivos
-  const [filtroFichas, setFiltroFichas] = useState('')
-  const [accionArchivo, setAccionArchivo] = useState('') // nombre del archivo en descarga/borrado
 
   const tareaIdRef = useRef(null)
   const timerRef = useRef(null)
@@ -281,33 +272,6 @@ export default function FichaRucScreen() {
     recargarFichas()
   }
 
-  async function bajar(nombre) {
-    setAccionArchivo(nombre)
-    try {
-      const blob = await descargarFichaRuc(nombre)
-      descargarBlob(blob, nombre)
-      setToast(`Descargado: ${nombre}`)
-    } catch (err) {
-      setToast(`No se pudo descargar: ${err?.message || err}`)
-    } finally {
-      setAccionArchivo('')
-    }
-  }
-
-  async function borrar(nombre) {
-    if (!window.confirm(`¿Borrar "${nombre}" del servidor?`)) return
-    setAccionArchivo(nombre)
-    try {
-      const r = await borrarFichaRuc(nombre)
-      setToast(r.ok ? 'Ficha borrada' : (r.error || 'No se pudo borrar'))
-      recargarFichas()
-    } catch (err) {
-      setToast(`No se pudo borrar: ${err?.message || err}`)
-    } finally {
-      setAccionArchivo('')
-    }
-  }
-
   async function quitarBloqueo() {
     try {
       await quitarBloqueoFichaRuc()
@@ -316,14 +280,6 @@ export default function FichaRucScreen() {
       setToast(`No se pudo quitar el aviso: ${err?.message || err}`)
     }
   }
-
-  // Fichas guardadas: filtro + paginación
-  const fichasFiltradas = useMemo(() => {
-    const q = filtroFichas.trim().toLowerCase()
-    return (info?.archivos || []).filter((a) => !q || a.nombre.toLowerCase().includes(q))
-  }, [info, filtroFichas])
-  const pag = usePaginacion(fichasFiltradas.length, 20, 'fichas_ruc')
-  const fichasPagina = fichasFiltradas.slice(pag.desde, pag.hasta)
 
   const total = tarea?.total || 0
   const procesados = tarea?.procesados || 0
@@ -488,42 +444,7 @@ export default function FichaRucScreen() {
             </Tarjeta>
           )}
 
-          <Tarjeta
-            titulo={`Fichas guardadas en el servidor (${info?.archivos?.length ?? 0})`}
-            derecha={<button type="button" onClick={recargarFichas} className={CLASE_MINI}>Actualizar</button>}
-          >
-            <input
-              value={filtroFichas}
-              onChange={(e) => setFiltroFichas(e.target.value)}
-              placeholder="Filtrar por nombre…"
-              className={`${CLASE_CAMPO} mb-2`}
-            />
-            {fichasFiltradas.length === 0 ? (
-              <div className="text-[11.5px] text-muted text-center py-4">
-                {info ? 'Todavía no hay fichas guardadas.' : 'Cargando…'}
-              </div>
-            ) : (
-              <div className="border border-bordersoft rounded-xl overflow-hidden">
-                {fichasPagina.map((a) => (
-                  <div key={a.nombre} className="flex items-center gap-2 px-2.5 min-h-[44px] py-1.5 border-b border-[#F4F6F9] last:border-b-0">
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11.5px] text-ink truncate" title={a.nombre}>{a.razon}</div>
-                      <div className="text-[10px] text-muted">
-                        {fechaCorta(a.fecha)} · {a.kb} KB {a.hoy && <span className="font-bold text-verde">· de hoy</span>}
-                      </div>
-                    </div>
-                    <button type="button" disabled={accionArchivo === a.nombre} onClick={() => bajar(a.nombre)} className="text-[11px] font-bold text-white bg-azul-dark px-3 py-1.5 rounded-lg disabled:opacity-60">
-                      {accionArchivo === a.nombre ? '…' : 'Descargar'}
-                    </button>
-                    <button type="button" disabled={accionArchivo === a.nombre} onClick={() => borrar(a.nombre)} className="text-[11px] font-bold text-rojo-sunat bg-[#FCE9EB] px-2.5 py-1.5 rounded-lg disabled:opacity-60" aria-label="Borrar ficha">
-                      🗑
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {fichasFiltradas.length > 0 && <Paginador total={fichasFiltradas.length} pag={pag} />}
-          </Tarjeta>
+          <FichasGuardadas archivos={info?.archivos || []} cargado={!!info} onRecargar={recargarFichas} avisar={setToast} />
 
           {info?.historial?.length > 0 && (
             <details className="bg-white rounded-xl border border-[#F0F3F7] shadow-card px-3.5 py-3 mt-3">
