@@ -19,6 +19,11 @@ const ACCIONES = [
   { valor: 'reporte', texto: 'Reporte tributario', detalle: 'Envía al correo' },
   { valor: 'ambos', texto: 'Ambos', detalle: 'Ficha y reporte' },
 ]
+// REPORTE TRIBUTARIO: PRÓXIMAMENTE.
+// Desde el servidor el captcha de SUNAT/Cloudflare no pasa (probado: IP de Oracle y también por Cloudflare WARP).
+// Por ahora el Reporte se envía desde la app de escritorio. El servidor conserva todo el código del Reporte
+// (y un "agente" opcional para la PC, ver agente_reportes.py). Cuando haya solución, cambia esta línea a true.
+const REPORTE_DISPONIBLE = false
 const PAUSAS = [
   { valor: 60, texto: '1 minuto' },
   { valor: 120, texto: '2 minutos (recomendado)' },
@@ -143,12 +148,13 @@ export default function FichaRucScreen() {
     return () => clearInterval(t)
   }, [fase])
 
-  const reporteDisponible = info ? info.reporte_disponible : true
+  const reporteDisponible = REPORTE_DISPONIBLE
+  const accionesVisibles = REPORTE_DISPONIBLE ? ACCIONES : ACCIONES.slice(0, 1)
   const bloqueo = info?.bloqueo || null
   const reportesHoy = info?.reportes_hoy || {}
   const limiteDia = info?.limite_dia || 3
   const bloqueada = fase !== 'edicion'
-  const usaReporte = accion === 'reporte' || accion === 'ambos'
+  const usaReporte = REPORTE_DISPONIBLE && (accion === 'reporte' || accion === 'ambos')
   const correoValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(correo.trim())
 
   // Pasa al log de la app solo las líneas nuevas del servidor.
@@ -298,19 +304,13 @@ export default function FichaRucScreen() {
             <div className="mb-3 bg-[#FCE9EB] text-rojo-sunat text-[11.5px] rounded-xl px-3 py-2.5 font-semibold">{errorGeneral}</div>
           )}
 
-          {bloqueo && (
+          {REPORTE_DISPONIBLE && bloqueo && (
             <div className="mb-3 bg-[#FFF6DB] text-[#8A6A00] text-[11.5px] rounded-xl px-3 py-2.5 flex flex-wrap items-center gap-2">
               <div className="flex-1 min-w-[200px]">
                 <span className="font-bold">SUNAT bloqueó los envíos hace poco.</span> No se enviarán reportes durante {minutosTexto(bloqueo.restante_s)} más
                 (la Ficha RUC sí se puede bajar). Motivo: {bloqueo.motivo || 'sin detalle'}
               </div>
               <button onClick={quitarBloqueo} className="text-[11px] font-bold text-[#8A6A00] bg-white border border-[#E8D9A0] px-2.5 py-1.5 rounded-lg">Quitar aviso</button>
-            </div>
-          )}
-
-          {info && !reporteDisponible && (
-            <div className="mb-3 bg-[#FFF6DB] text-[#8A6A00] text-[11.5px] rounded-xl px-3 py-2.5">
-              <span className="font-bold">El Reporte Tributario aún no está activo en el servidor.</span> {info.reporte_motivo} La Ficha RUC funciona normal.
             </div>
           )}
 
@@ -355,8 +355,8 @@ export default function FichaRucScreen() {
             </Tarjeta>
 
             <Tarjeta numero="2" titulo="Qué hacer">
-              <div className="grid grid-cols-3 gap-1.5 mb-3">
-                {ACCIONES.map((a) => {
+              <div className={`grid gap-1.5 mb-3 ${accionesVisibles.length > 1 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                {accionesVisibles.map((a) => {
                   const activo = accion === a.valor
                   return (
                     <button
@@ -371,6 +371,15 @@ export default function FichaRucScreen() {
                     </button>
                   )
                 })}
+                {!REPORTE_DISPONIBLE && (
+                  <div
+                    className="h-[52px] rounded-lg border border-dashed border-bordersoft bg-[#F5F8FB] text-center px-1 flex flex-col items-center justify-center"
+                    title="El Reporte Tributario se envía por ahora desde la app de escritorio"
+                  >
+                    <div className="text-[11.5px] font-bold leading-tight text-muted">Reporte tributario</div>
+                    <div className="mt-0.5 text-[8.5px] font-bold px-1.5 py-[1px] rounded bg-[#E3EAF2] text-[#5B7185]">Próximamente</div>
+                  </div>
+                )}
               </div>
 
               {usaReporte ? (
@@ -390,7 +399,7 @@ export default function FichaRucScreen() {
                   </select>
                   <p className="text-[10.5px] text-muted mt-2">
                     SUNAT limita a {limiteDia} reportes por día por RUC y bloquea de forma temporal si se piden muchos seguidos.
-                    La pausa se varía un poco al azar. Si el captcha se cuelga, el envío se reinicia solo (hasta 3 intentos).
+                    La pausa se varía un poco al azar. Si el captcha se cuelga, el envío se reinicia solo (hasta 2 intentos).
                   </p>
                 </>
               ) : (
@@ -446,7 +455,7 @@ export default function FichaRucScreen() {
 
           <FichasGuardadas archivos={info?.archivos || []} cargado={!!info} onRecargar={recargarFichas} avisar={setToast} />
 
-          {info?.historial?.length > 0 && (
+          {REPORTE_DISPONIBLE && info?.historial?.length > 0 && (
             <details className="bg-white rounded-xl border border-[#F0F3F7] shadow-card px-3.5 py-3 mt-3">
               <summary className="text-[12px] font-bold text-ink cursor-pointer">Últimos envíos de reporte ({info.historial.length})</summary>
               <div className="mt-2 border border-bordersoft rounded-xl overflow-x-auto">
