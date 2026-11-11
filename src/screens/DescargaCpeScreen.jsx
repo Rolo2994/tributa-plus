@@ -2,9 +2,6 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { useApp } from '../context/AppContext.jsx'
 import CustomSelect from '../components/CustomSelect.jsx'
 import Toast from '../components/Toast.jsx'
-import Paginador from '../components/Paginador.jsx'
-import BarraFiltroTabla from '../components/BarraFiltroTabla.jsx'
-import { usePaginacion } from '../utils/usePaginacion.js'
 import {
   ejecutarCpe, consultarEstadoCpe, listarArchivosCpe,
   descargarArchivoCpe, descargarZipCpe, borrarTareaCpe,
@@ -14,6 +11,7 @@ import {
   FILAS_INICIALES, crearFilasVacias, esFilaVacia, asegurarFilaLibre, normalizarCampo,
   validarFilaCacheada, validarPlantilla, nombreEjemplo,
   parsearPortapapeles, aplicarPegado, filaExitosa, textoFallidos,
+  resumenDetalle, celdaParaExcel, textoColumnaDescripciones,
 } from '../utils/cpeTabla.js'
 import {
   soportaSelectorCarpeta, elegirCarpeta, asegurarPermiso,
@@ -23,8 +21,8 @@ import {
 // ── Medidas y colores (una sola fuente para encabezado Y filas) ─────
 // El encabezado y cada fila usan EXACTAMENTE la misma plantilla de columnas,
 // todas en píxeles, así nunca se desalinean. La última columna se estira.
-const COLUMNAS_GRID = '40px 130px 140px 72px 104px 130px minmax(260px, 1fr) 36px'
-const ANCHO_MINIMO_TABLA = 'min-w-[916px]' // suma de las columnas fijas + el mínimo de la última
+const COLUMNAS_GRID = '40px 130px 140px 72px 104px 130px minmax(220px, 1fr) minmax(280px, 1.2fr) 36px'
+const ANCHO_MINIMO_TABLA = 'min-w-[1150px]' // suma de las columnas fijas + el mínimo de la última
 const ALTURA_FILA = 'h-9'
 const ALTURA_MAXIMA_TABLA = 'max-h-[46vh]'
 
@@ -69,14 +67,21 @@ function guardarPrefs(prefs) {
   }
 }
 
-// Estado de una fila para el filtro: vacia | error | aviso | pendiente (lista, aún sin descargar) | ok
-function estadoParaFiltro(fila, resultado, pedido) {
-  if (esFilaVacia(fila)) return 'vacia'
-  if (resultado) return filaExitosa(resultado, pedido) ? 'ok' : 'error'
-  const v = validarFilaCacheada(fila)
-  if (v.errores.length) return 'error'
-  if (v.avisos.length) return 'aviso'
-  return 'pendiente'
+// ── ¿Celular? Esta acción se usa desde computadora ──────────────────
+function detectarCelular() {
+  const angosto = window.matchMedia('(max-width: 767px)').matches
+  const movil = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+  return angosto || movil
+}
+function useEsCelular() {
+  const [esCelular, setEsCelular] = useState(detectarCelular)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 767px)')
+    const alCambiar = () => setEsCelular(detectarCelular())
+    mq.addEventListener('change', alCambiar)
+    return () => mq.removeEventListener('change', alCambiar)
+  }, [])
+  return esCelular
 }
 
 // Deja la tabla con al menos FILAS_INICIALES filas y siempre una libre al final.
@@ -127,8 +132,29 @@ function Pildora({ activa, onClick, disabled, children }) {
   )
 }
 
+function AvisoSoloPc({ onVolver }) {
+  return (
+    <div className="relative flex-1 flex flex-col min-h-0">
+      <Encabezado onVolver={onVolver} />
+      <div className="flex-1 overflow-y-auto px-4 pt-6">
+        <div className="bg-white rounded-2xl border border-[#F0F3F7] shadow-card p-5 text-center">
+          <div className="text-[34px] leading-none mb-2">💻</div>
+          <div className="font-display font-bold text-[15px] mb-1.5">Disponible en computadora</div>
+          <p className="text-[12px] text-muted leading-relaxed mb-4">
+            Esta acción necesita pegar datos desde Excel y elegir una carpeta de tu PC para guardar los
+            archivos, algo que se hace mejor en una computadora. Ábrela desde tu PC con Chrome o Edge.
+          </p>
+          <button onClick={onVolver} className="w-full bg-azul-dark text-white text-[13px] font-bold py-3 rounded-2xl">
+            Volver
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // Una fila de la tabla. memo: al escribir en una celda solo se redibuja esa fila.
-const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCambio, onSalir, onTecla, onEliminar }) {
+const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCambio, onSalir, onTecla, onEliminar, onCopiarDesc }) {
   const validacion = validarFilaCacheada(fila)
 
   let estado = 'normal'
@@ -176,6 +202,18 @@ const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCam
         </div>
       ))}
       <div className={`px-2 text-[11px] truncate ${COLOR_TEXTO_OBS[estado]}`} title={observacion}>{observacion}</div>
+      <div className="px-1 min-w-0">
+        {resultado?.descripcion ? (
+          <button
+            type="button"
+            onClick={() => onCopiarDesc(resultado.descripcion)}
+            title={`${resultado.descripcion}\n\n(clic: copiar)`}
+            className="w-full h-7 px-2 text-left text-[11px] text-ink truncate rounded-md hover:bg-[#EAF1FA]"
+          >
+            {resumenDetalle(resultado.descripcion)}
+          </button>
+        ) : null}
+      </div>
       <div className="flex items-center justify-center">
         {!bloqueada && !esFilaVacia(fila) && (
           <button
@@ -193,8 +231,8 @@ const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCam
   )
 })
 
-// ── Pantalla (PC y celular) ─────────────────────────────────────────
-export default function DescargaCpeScreen() {
+// ── Pantalla en PC ──────────────────────────────────────────────────
+function DescargaCpePc() {
   const { rucs, activeRuc, goScreen, pushLog } = useApp()
   const prefs = useRef(leerPrefs()).current
 
@@ -222,8 +260,6 @@ export default function DescargaCpeScreen() {
   const [toast, setToast] = useState('')
   const [segundos, setSegundos] = useState(0) // tiempo transcurrido de la descarga en curso
   const cerrarToast = useCallback(() => setToast(''), [])
-  const [buscar, setBuscar] = useState('')
-  const [filtroEstado, setFiltroEstado] = useState('todos')
 
   // Referencias: valores que los temporizadores necesitan "frescos"
   const indicesRef = useRef([]) // fila del servidor (1, 2, 3…) -> índice en la tabla
@@ -232,9 +268,6 @@ export default function DescargaCpeScreen() {
   const timerRef = useRef(null)
   const vivoRef = useRef(true)
   const fallosRedRef = useRef(0)
-  const visiblesRef = useRef([]) // índices de filas que cumplen el filtro (para moverse con el teclado)
-  const pagRef = useRef(null)
-  const focoPendienteRef = useRef(null)
   carpetaRef.current = carpeta
 
   useEffect(() => {
@@ -298,52 +331,6 @@ export default function DescargaCpeScreen() {
     return { listas, conError, conAviso }
   }, [filas])
 
-  // ── Filtro y paginación de la tabla ───────────────────────────────
-  const estadosFila = useMemo(
-    () => filas.map((f, i) => estadoParaFiltro(f, resultados[i], pedidoEjecutado)),
-    [filas, resultados, pedidoEjecutado]
-  )
-  const conteoEstados = useMemo(() => {
-    const c = { todos: 0, error: 0, aviso: 0, pendiente: 0, ok: 0 }
-    estadosFila.forEach((e) => { if (e !== 'vacia') { c.todos += 1; c[e] += 1 } })
-    return c
-  }, [estadosFila])
-  const opcionesFiltro = [
-    { valor: 'todos', texto: 'Todas', cant: conteoEstados.todos },
-    { valor: 'error', texto: 'Con error', cant: conteoEstados.error },
-    { valor: 'aviso', texto: 'Con aviso', cant: conteoEstados.aviso },
-    { valor: 'pendiente', texto: 'Listas sin descargar', cant: conteoEstados.pendiente },
-    { valor: 'ok', texto: 'Descargadas ✓', cant: conteoEstados.ok },
-  ]
-  const indicesVisibles = useMemo(() => {
-    const q = buscar.trim().toLowerCase()
-    const lista = []
-    filas.forEach((f, i) => {
-      if (!q && filtroEstado === 'todos') { lista.push(i); return } // sin filtro: todas, incluso las vacías
-      const est = estadosFila[i]
-      if (est === 'vacia') return
-      if (filtroEstado !== 'todos' && est !== filtroEstado) return
-      if (q) {
-        const texto = `${CAMPOS.map((c) => f[c]).join(' ')} ${resultados[i]?.error || ''}`.toLowerCase()
-        if (!texto.includes(q)) return
-      }
-      lista.push(i)
-    })
-    return lista
-  }, [filas, estadosFila, buscar, filtroEstado, resultados])
-  const pag = usePaginacion(indicesVisibles.length, 50, 'cpe_entrada')
-  const indicesPagina = indicesVisibles.slice(pag.desde, pag.hasta)
-  visiblesRef.current = indicesVisibles
-  pagRef.current = pag
-
-  // Si el teclado pidió una fila de otra página, al cambiar de página se enfoca.
-  useEffect(() => {
-    const f = focoPendienteRef.current
-    if (!f) return
-    const el = document.querySelector(`[data-celda="${f.idx}-${f.col}"]`)
-    if (el) { el.focus(); el.select?.(); focoPendienteRef.current = null }
-  }, [pag.pagina])
-
   // ── Edición de la tabla ───────────────────────────────────────────
   const cambiarCampo = useCallback((idx, campo, valor) => {
     setFilas((prev) => {
@@ -379,20 +366,12 @@ export default function DescargaCpeScreen() {
     }
     const delta = e.key === 'Enter' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowUp' ? -1 : 0
     if (!delta) return
-    const lista = visiblesRef.current
-    const pos = lista.indexOf(idx)
-    const destino = lista[pos + delta]
-    if (pos < 0 || destino === undefined) return
-    e.preventDefault()
-    const siguiente = document.querySelector(`[data-celda="${destino}-${col}"]`)
+    const siguiente = document.querySelector(`[data-celda="${idx + delta}-${col}"]`)
     if (siguiente) {
+      e.preventDefault()
       siguiente.focus()
       siguiente.select?.()
-      return
     }
-    // La fila está en otra página: se cambia de página y se enfoca al dibujarla.
-    focoPendienteRef.current = { idx: destino, col }
-    pagRef.current.setPagina(Math.floor((pos + delta) / pagRef.current.porPagina) + 1)
   }, [eliminarFila])
 
   function posicionActiva() {
@@ -446,6 +425,31 @@ export default function DescargaCpeScreen() {
     if (hayDatos && !window.confirm('¿Borrar todos los comprobantes de la tabla?')) return
     setFilas(crearFilasVacias())
     reiniciarResultados()
+  }
+
+  // ── Copiar descripciones al portapapeles (para Excel) ─────────────
+  const copiarTexto = useCallback(async (texto, mensaje) => {
+    try {
+      await navigator.clipboard.writeText(texto)
+      setToast(mensaje)
+    } catch {
+      pushLog('⚠ El navegador no dejó copiar al portapapeles.')
+      setToast('No se pudo copiar')
+    }
+  }, [pushLog])
+
+  const copiarDescripcion = useCallback(
+    (desc) => copiarTexto(celdaParaExcel(desc), 'Descripción copiada — pégala en Excel con Ctrl+V'),
+    [copiarTexto]
+  )
+
+  function copiarColumnaDescripciones() {
+    const { texto, cantidad } = textoColumnaDescripciones(filas, resultados)
+    if (!texto) {
+      setToast('Todavía no hay descripciones (descarga primero)')
+      return
+    }
+    copiarTexto(texto, `Columna copiada (${cantidad} fila(s)) — pégala en Excel`)
   }
 
   function eliminarFilasConError() {
@@ -690,6 +694,7 @@ export default function DescargaCpeScreen() {
   const idsEnviados = indicesRef.current
   const exitosas = idsEnviados.filter((idx) => resultados[idx] && filaExitosa(resultados[idx], pedidoEjecutado)).length
   const fallidas = idsEnviados.filter((idx) => resultados[idx] && !filaExitosa(resultados[idx], pedidoEjecutado)).length
+  const hayDescripciones = Object.values(resultados).some((r) => r?.descripcion)
   const total = tarea?.total || 0
   const procesados = tarea?.procesados || 0
   const porcentaje = total ? Math.round((procesados / total) * 100) : 0
@@ -830,19 +835,8 @@ export default function DescargaCpeScreen() {
             </div>
             <p className="text-[10.5px] text-muted mb-2">
               En Excel copia las 5 columnas (Cód. operación, RUC emisor, Tipo, Serie, Número), haz clic en la primera
-              celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda. Con la ✕ de cada fila (o Ctrl + Supr) la eliminas.
+              celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda. Con la ✕ de cada fila (o Ctrl + Supr) la eliminas. Al terminar, la columna Descripción se copia con un clic.
             </p>
-
-            <BarraFiltroTabla
-              buscar={buscar}
-              onBuscar={(v) => { setBuscar(v); pag.setPagina(1) }}
-              estado={filtroEstado}
-              onEstado={(v) => { setFiltroEstado(v); pag.setPagina(1) }}
-              opciones={opcionesFiltro}
-              visibles={indicesVisibles.length}
-              total={filas.length}
-              placeholder="Buscar RUC, serie, número, error…"
-            />
 
             <div className={`overflow-auto ${ALTURA_MAXIMA_TABLA} border border-bordersoft rounded-xl`} onPaste={alPegar}>
               <div className={ANCHO_MINIMO_TABLA} role="table">
@@ -856,13 +850,21 @@ export default function DescargaCpeScreen() {
                     <div key={c.campo} className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted truncate">{c.titulo}</div>
                   ))}
                   <div className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted">Observación</div>
+                  <button
+                    type="button"
+                    onClick={copiarColumnaDescripciones}
+                    title="Copiar toda la columna de descripciones"
+                    className="px-2 text-left text-[10px] font-bold uppercase tracking-wide text-azul-inst truncate"
+                  >
+                    Descripción · copiar todo
+                  </button>
                   <div />
                 </div>
-                {indicesPagina.map((i) => (
+                {filas.map((f, i) => (
                   <Fila
                     key={i}
                     idx={i}
-                    fila={filas[i]}
+                    fila={f}
                     resultado={resultados[i]}
                     pedido={pedidoEjecutado}
                     bloqueada={bloqueada}
@@ -870,11 +872,11 @@ export default function DescargaCpeScreen() {
                     onSalir={normalizarAlSalir}
                     onTecla={moverConTeclas}
                     onEliminar={eliminarFila}
+                    onCopiarDesc={copiarDescripcion}
                   />
                 ))}
               </div>
             </div>
-            <Paginador total={indicesVisibles.length} pag={pag} />
           </div>
         </div>
       </div>
@@ -883,7 +885,7 @@ export default function DescargaCpeScreen() {
       <div className="border-t border-bordersoft bg-white px-4 md:px-8 py-3">
         <div className="max-w-[1100px] mx-auto">
           {fase === 'edicion' ? (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-3">
               <div className="flex-1 text-[11.5px] text-muted">
                 {resumen.listas + resumen.conError === 0
                   ? 'Pega los comprobantes para empezar.'
@@ -899,7 +901,7 @@ export default function DescargaCpeScreen() {
             </div>
           ) : (
             <div>
-              <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-1.5">
+              <div className="flex items-center justify-between gap-3 mb-1.5">
                 <div>
                   <div className="text-[12px] font-bold text-ink">
                     {textoEstado}
@@ -937,6 +939,9 @@ export default function DescargaCpeScreen() {
                     <span className="text-[11.5px] text-[#8A6A00] font-semibold">No se generó ningún archivo</span>
                   )}
                   <div className="flex-1" />
+                  {hayDescripciones && (
+                    <button onClick={copiarColumnaDescripciones} className="text-[11.5px] font-semibold text-ink bg-white border border-bordersoft px-3 py-1.5 rounded-lg">Copiar descripciones</button>
+                  )}
                   {fallidas > 0 && (
                     <>
                       <button onClick={copiarFallidos} className="text-[11.5px] font-semibold text-ink bg-white border border-bordersoft px-3 py-1.5 rounded-lg">Copiar fallidos</button>
@@ -952,4 +957,10 @@ export default function DescargaCpeScreen() {
       </div>
     </div>
   )
+}
+
+export default function DescargaCpeScreen() {
+  const { goScreen } = useApp()
+  const esCelular = useEsCelular()
+  return esCelular ? <AvisoSoloPc onVolver={() => goScreen('inicio')} /> : <DescargaCpePc />
 }

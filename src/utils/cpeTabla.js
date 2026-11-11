@@ -202,3 +202,34 @@ export function textoFallidos(filas, indices, resultados, pedido) {
     })
     .join('\n')
 }
+
+// ── Descripción / detalle de los comprobantes ───────────────────────
+export const MAX_CHARS_RESUMEN_DESC = 90
+
+// Texto de UNA línea para la celda: primera línea + "(+N más)" si hay más ítems.
+export function resumenDetalle(texto) {
+  const lineas = String(texto ?? '').split('\n').filter((l) => l.trim())
+  if (lineas.length === 0) return ''
+  let primera = lineas[0]
+  if (primera.length > MAX_CHARS_RESUMEN_DESC) primera = `${primera.slice(0, MAX_CHARS_RESUMEN_DESC - 1).trimEnd()}…`
+  return lineas.length > 1 ? `${primera}  (+${lineas.length - 1} más)` : primera
+}
+
+// Excel toma un salto de línea como "nueva fila" al pegar, salvo que el texto vaya
+// entre comillas: así queda todo en UNA sola celda.
+export function celdaParaExcel(texto) {
+  const t = String(texto ?? '')
+  return /[\n\t"]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+}
+
+// Toda la columna: una celda por fila de la tabla (mismo orden), para pegarla de un golpe
+// junto a las demás columnas de Excel.
+export function textoColumnaDescripciones(filas, resultados) {
+  let ultima = -1
+  filas.forEach((f, i) => { if (!esFilaVacia(f)) ultima = i })
+  if (ultima < 0) return { texto: '', cantidad: 0 }
+  const celdas = []
+  for (let i = 0; i <= ultima; i += 1) celdas.push(celdaParaExcel(resultados[i]?.descripcion || ''))
+  const hay = celdas.some((c) => c !== '')
+  return { texto: hay ? celdas.join('\n') : '', cantidad: ultima + 1 }
+}
