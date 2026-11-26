@@ -11,7 +11,7 @@ import {
   FILAS_INICIALES, crearFilasVacias, esFilaVacia, asegurarFilaLibre, normalizarCampo,
   validarFilaCacheada, validarPlantilla, nombreEjemplo,
   parsearPortapapeles, aplicarPegado, filaExitosa, textoFallidos,
-  resumenDetalle, celdaParaExcel, textoColumnaDescripciones,
+  resumenDetalle, celdaParaExcel, textoColumnaDescripciones, textoColumnaFormaPago,
 } from '../utils/cpeTabla.js'
 import {
   soportaSelectorCarpeta, elegirCarpeta, asegurarPermiso,
@@ -21,8 +21,8 @@ import {
 // ── Medidas y colores (una sola fuente para encabezado Y filas) ─────
 // El encabezado y cada fila usan EXACTAMENTE la misma plantilla de columnas,
 // todas en píxeles, así nunca se desalinean. La última columna se estira.
-const COLUMNAS_GRID = '40px 130px 140px 72px 104px 130px minmax(220px, 1fr) minmax(280px, 1.2fr) 36px'
-const ANCHO_MINIMO_TABLA = 'min-w-[1150px]' // suma de las columnas fijas + el mínimo de la última
+const COLUMNAS_GRID = '40px 130px 140px 72px 104px 130px minmax(220px, 1fr) 130px minmax(280px, 1.2fr) 36px'
+const ANCHO_MINIMO_TABLA = 'min-w-[1280px]' // suma de las columnas fijas + el mínimo de la última
 const ALTURA_FILA = 'h-9'
 const ALTURA_MAXIMA_TABLA = 'max-h-[46vh]'
 
@@ -154,7 +154,7 @@ function AvisoSoloPc({ onVolver }) {
 }
 
 // Una fila de la tabla. memo: al escribir en una celda solo se redibuja esa fila.
-const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCambio, onSalir, onTecla, onEliminar, onCopiarDesc }) {
+const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCambio, onSalir, onTecla, onEliminar, onCopiarDesc, onCopiarPago }) {
   const validacion = validarFilaCacheada(fila)
 
   let estado = 'normal'
@@ -202,6 +202,20 @@ const Fila = memo(function Fila({ idx, fila, resultado, pedido, bloqueada, onCam
         </div>
       ))}
       <div className={`px-2 text-[11px] truncate ${COLOR_TEXTO_OBS[estado]}`} title={observacion}>{observacion}</div>
+      <div className="px-1 min-w-0">
+        {resultado?.forma_pago ? (
+          <button
+            type="button"
+            onClick={() => onCopiarPago(resultado.forma_pago)}
+            title={`${resultado.forma_pago} (clic: copiar)`}
+            className={`h-6 px-2.5 rounded-full text-[10.5px] font-semibold ${
+              resultado.forma_pago === 'Contado' ? 'text-verde bg-[#E8F6EE]' : 'text-[#8A6A00] bg-[#FFF6D6]'
+            }`}
+          >
+            {resultado.forma_pago}
+          </button>
+        ) : null}
+      </div>
       <div className="px-1 min-w-0">
         {resultado?.descripcion ? (
           <button
@@ -442,6 +456,20 @@ function DescargaCpePc() {
     (desc) => copiarTexto(celdaParaExcel(desc), 'Descripción copiada — pégala en Excel con Ctrl+V'),
     [copiarTexto]
   )
+
+  const copiarPago = useCallback(
+    (valor) => copiarTexto(valor, `Forma de pago copiada: ${valor}`),
+    [copiarTexto]
+  )
+
+  function copiarColumnaFormaPago() {
+    const { texto, cantidad } = textoColumnaFormaPago(filas, resultados)
+    if (!texto) {
+      setToast('Todavía no hay datos de forma de pago (descarga primero)')
+      return
+    }
+    copiarTexto(texto, `Columna copiada (${cantidad} fila(s)) — pégala en Excel`)
+  }
 
   function copiarColumnaDescripciones() {
     const { texto, cantidad } = textoColumnaDescripciones(filas, resultados)
@@ -695,6 +723,7 @@ function DescargaCpePc() {
   const exitosas = idsEnviados.filter((idx) => resultados[idx] && filaExitosa(resultados[idx], pedidoEjecutado)).length
   const fallidas = idsEnviados.filter((idx) => resultados[idx] && !filaExitosa(resultados[idx], pedidoEjecutado)).length
   const hayDescripciones = Object.values(resultados).some((r) => r?.descripcion)
+  const hayFormaPago = Object.values(resultados).some((r) => r?.forma_pago)
   const total = tarea?.total || 0
   const procesados = tarea?.procesados || 0
   const porcentaje = total ? Math.round((procesados / total) * 100) : 0
@@ -835,7 +864,7 @@ function DescargaCpePc() {
             </div>
             <p className="text-[10.5px] text-muted mb-2">
               En Excel copia las 5 columnas (Cód. operación, RUC emisor, Tipo, Serie, Número), haz clic en la primera
-              celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda. Con la ✕ de cada fila (o Ctrl + Supr) la eliminas. Al terminar, la columna Descripción se copia con un clic.
+              celda de abajo y presiona <span className="font-semibold">Ctrl+V</span>. Máximo {MAX_FILAS} por tanda. Con la ✕ de cada fila (o Ctrl + Supr) la eliminas. Al terminar, las columnas Pago y Descripción se copian con un clic.
             </p>
 
             <div className={`overflow-auto ${ALTURA_MAXIMA_TABLA} border border-bordersoft rounded-xl`} onPaste={alPegar}>
@@ -850,6 +879,14 @@ function DescargaCpePc() {
                     <div key={c.campo} className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted truncate">{c.titulo}</div>
                   ))}
                   <div className="px-2 text-[10px] font-bold uppercase tracking-wide text-muted">Observación</div>
+                  <button
+                    type="button"
+                    onClick={copiarColumnaFormaPago}
+                    title="Copiar toda la columna de forma de pago (Contado / Crédito)"
+                    className="px-2 text-left text-[10px] font-bold uppercase tracking-wide text-azul-inst truncate"
+                  >
+                    Pago · copiar todo
+                  </button>
                   <button
                     type="button"
                     onClick={copiarColumnaDescripciones}
@@ -873,6 +910,7 @@ function DescargaCpePc() {
                     onTecla={moverConTeclas}
                     onEliminar={eliminarFila}
                     onCopiarDesc={copiarDescripcion}
+                    onCopiarPago={copiarPago}
                   />
                 ))}
               </div>
@@ -939,6 +977,9 @@ function DescargaCpePc() {
                     <span className="text-[11.5px] text-[#8A6A00] font-semibold">No se generó ningún archivo</span>
                   )}
                   <div className="flex-1" />
+                  {hayFormaPago && (
+                    <button onClick={copiarColumnaFormaPago} className="text-[11.5px] font-semibold text-ink bg-white border border-bordersoft px-3 py-1.5 rounded-lg">Copiar forma de pago</button>
+                  )}
                   {hayDescripciones && (
                     <button onClick={copiarColumnaDescripciones} className="text-[11.5px] font-semibold text-ink bg-white border border-bordersoft px-3 py-1.5 rounded-lg">Copiar descripciones</button>
                   )}

@@ -233,3 +233,14 @@ export function textoColumnaDescripciones(filas, resultados) {
   const hay = celdas.some((c) => c !== '')
   return { texto: hay ? celdas.join('\n') : '', cantidad: ultima + 1 }
 }
+
+// Toda la columna "Forma de pago" (Contado / Crédito): una celda por fila, mismo orden que la tabla.
+export function textoColumnaFormaPago(filas, resultados) {
+  let ultima = -1
+  filas.forEach((f, i) => { if (!esFilaVacia(f)) ultima = i })
+  if (ultima < 0) return { texto: '', cantidad: 0 }
+  const celdas = []
+  for (let i = 0; i <= ultima; i += 1) celdas.push(String(resultados[i]?.forma_pago || '').trim())
+  const hay = celdas.some((c) => c !== '')
+  return { texto: hay ? celdas.join('\n') : '', cantidad: ultima + 1 }
+}
